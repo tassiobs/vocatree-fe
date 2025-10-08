@@ -1,14 +1,19 @@
 import { TreeItem } from '../types';
 import { Card } from '../types/api';
 
-// Convert API Card to TreeItem
+// Convert API Card to TreeItem (recursively handles children)
 export const cardToTreeItem = (card: Card): TreeItem => {
+  const children = card.children && card.children.length > 0 
+    ? card.children.map(childCard => cardToTreeItem(childCard))
+    : [];
+  
   return {
     id: card.id,
     name: card.name,
     type: 'card',
     parent_id: card.parent_id,
-    children: [],
+    children: children,
+    isExpanded: false, // Start collapsed
     example_phrases: card.example_phrases,
     meanings: card.meanings,
     grammar_roles: card.grammar_roles,
@@ -22,31 +27,12 @@ export const cardToTreeItem = (card: Card): TreeItem => {
   };
 };
 
-// Build tree structure from flat array of cards
+// Build tree structure from hierarchical cards (from /cards/hierarchy endpoint)
 export const buildTree = (cards: Card[]): TreeItem[] => {
-  const cardMap = new Map<number, TreeItem>();
-  const rootItems: TreeItem[] = [];
-
-  // First pass: create all items
-  cards.forEach(card => {
-    const treeItem = cardToTreeItem(card);
-    cardMap.set(card.id, treeItem);
-  });
-
-  // Second pass: build parent-child relationships
-  cards.forEach(card => {
-    const treeItem = cardMap.get(card.id)!;
-    
-    if (card.parent_id === null) {
-      rootItems.push(treeItem);
-    } else {
-      const parent = cardMap.get(card.parent_id);
-      if (parent) {
-        parent.children.push(treeItem);
-      }
-    }
-  });
-
+  // The /cards/hierarchy endpoint returns cards with children already populated
+  // So we just need to recursively convert them to TreeItems
+  const treeItems = cards.map(card => cardToTreeItem(card));
+  
   // Sort children by name
   const sortChildren = (items: TreeItem[]) => {
     items.sort((a, b) => {
@@ -64,8 +50,8 @@ export const buildTree = (cards: Card[]): TreeItem[] => {
     });
   };
 
-  sortChildren(rootItems);
-  return rootItems;
+  sortChildren(treeItems);
+  return treeItems;
 };
 
 // Find item in tree by ID

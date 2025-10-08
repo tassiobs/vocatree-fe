@@ -75,7 +75,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           </div>
 
           {/* Expand/collapse button */}
-          {item.type === 'folder' && (
+          {item.children && item.children.length > 0 && (
             <button
               onClick={() => onToggle(item.id)}
               className="mr-2 p-1 hover:bg-gray-200 rounded"
@@ -170,7 +170,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
       )}
 
       {/* Children */}
-      {item.type === 'folder' && item.isExpanded && item.children.length > 0 && (
+      {item.isExpanded && item.children && item.children.length > 0 && (
         <div>
           {item.children.map((child) => (
             <TreeNode
