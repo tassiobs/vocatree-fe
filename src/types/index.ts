@@ -19,6 +19,7 @@ export interface TreeItem {
   name: string;
   type: 'folder' | 'card';
   parent_id: number | null;
+  is_folder: boolean;
   children: TreeItem[];
   isExpanded?: boolean;
   // Card-specific properties

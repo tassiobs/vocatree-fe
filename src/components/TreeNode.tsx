@@ -116,27 +116,40 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {item.type === 'folder' && (
+          {/* Add buttons - always visible for folders */}
+          <div className="flex items-center space-x-1">
+            {item.is_folder === true && item.parent_id === null && (
               <>
                 <button
                   onClick={handleAddFolder}
-                  className="p-1 hover:bg-gray-200 rounded"
+                  className="p-1 hover:bg-blue-100 rounded bg-blue-50"
                   title="Add folder"
                 >
-                  <Folder className="h-3 w-3 text-blue-500" />
+                  <Folder className="h-3 w-3 text-blue-600" />
                 </button>
                 <button
                   onClick={handleAddCard}
-                  className="p-1 hover:bg-gray-200 rounded"
+                  className="p-1 hover:bg-gray-200 rounded bg-gray-100"
                   title="Add card"
                 >
-                  <Plus className="h-3 w-3 text-gray-600" />
+                  <Plus className="h-3 w-3 text-gray-700" />
                 </button>
               </>
             )}
             
+            {item.is_folder === true && item.parent_id !== null && (
+              <button
+                onClick={handleAddCard}
+                className="p-1 hover:bg-gray-200 rounded bg-gray-100"
+                title="Add card"
+              >
+                <Plus className="h-3 w-3 text-gray-700" />
+              </button>
+            )}
+          </div>
+
+          {/* Edit/Delete actions - show on hover */}
+          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => setIsEditing(true)}
               className="p-1 hover:bg-gray-200 rounded"

@@ -10,8 +10,9 @@ export const cardToTreeItem = (card: Card): TreeItem => {
   return {
     id: card.id,
     name: card.name,
-    type: 'card',
+    type: card.is_folder ? 'folder' : 'card',
     parent_id: card.parent_id,
+    is_folder: card.is_folder,
     children: children,
     isExpanded: false, // Start collapsed
     example_phrases: card.example_phrases,

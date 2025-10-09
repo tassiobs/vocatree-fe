@@ -69,6 +69,7 @@ export const VocabTree: React.FC = () => {
       const newCard = await apiClient.createCard({
         name,
         parent_id: parentId,
+        is_folder: type === 'folder',
       });
       
       const newTreeItem: TreeItem = {
@@ -76,6 +77,7 @@ export const VocabTree: React.FC = () => {
         name: newCard.name,
         type: type,
         parent_id: newCard.parent_id,
+        is_folder: newCard.is_folder,
         children: [],
       };
 
@@ -96,6 +98,7 @@ export const VocabTree: React.FC = () => {
       const newCard = await apiClient.createCard({
         name,
         parent_id: null,
+        is_folder: addType === 'folder',
       });
       
       const newTreeItem: TreeItem = {
@@ -103,6 +106,7 @@ export const VocabTree: React.FC = () => {
         name: newCard.name,
         type: addType,
         parent_id: null,
+        is_folder: newCard.is_folder,
         children: [],
       };
 

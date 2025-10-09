@@ -26,6 +26,7 @@ export interface Card {
   id: number;
   name: string;
   parent_id: number | null;
+  is_folder: boolean;
   example_phrases: string[] | null;
   meanings: string[] | null;
   grammar_roles: string[] | null;
@@ -42,6 +43,7 @@ export interface Card {
 export interface CardCreate {
   name: string;
   parent_id?: number | null;
+  is_folder?: boolean;
   example_phrases?: string[] | null;
   meanings?: string[] | null;
   grammar_roles?: string[] | null;
