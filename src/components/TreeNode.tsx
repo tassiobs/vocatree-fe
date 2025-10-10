@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TreeNodeProps } from '../types';
 import { AddItemInput } from './AddItemInput';
+import { CardDetail } from './CardDetail';
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -25,6 +26,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [editName, setEditName] = useState(item.name);
   const [showAddInput, setShowAddInput] = useState(false);
   const [addType, setAddType] = useState<'folder' | 'card'>('card');
+  const [showDetail, setShowDetail] = useState(false);
 
   const handleRename = () => {
     if (editName.trim() && editName.trim() !== item.name) {
@@ -59,6 +61,21 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const handleAddCard = () => {
     setAddType('card');
     setShowAddInput(true);
+  };
+
+  const handleCardClick = () => {
+    if (!isEditing) {
+      setShowDetail(true);
+    }
+  };
+
+  const handleDetailClose = () => {
+    setShowDetail(false);
+  };
+
+  const handleDetailSave = () => {
+    // Refresh the parent tree to show updated data
+    window.location.reload();
   };
 
   const indentStyle = {
@@ -110,9 +127,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 autoFocus
               />
             ) : (
-              <span className="text-sm text-gray-900 truncate">
+              <button
+                onClick={handleCardClick}
+                className="text-sm text-gray-900 truncate hover:text-blue-600 transition-colors text-left w-full"
+              >
                 {item.name}
-              </span>
+              </button>
             )}
           </div>
 
@@ -198,6 +218,15 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             />
           ))}
         </div>
+      )}
+
+      {/* Card Detail Modal */}
+      {showDetail && (
+        <CardDetail
+          cardId={item.id}
+          onClose={handleDetailClose}
+          onSave={handleDetailSave}
+        />
       )}
     </div>
   );
