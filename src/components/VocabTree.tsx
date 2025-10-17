@@ -3,9 +3,10 @@ import { DragDropContext, DropResult, Droppable } from 'react-beautiful-dnd';
 import { TreeItem } from '../types';
 import { TreeNode } from './TreeNode';
 import { AddItemInput } from './AddItemInput';
+import { AITreeGenerator } from './AITreeGenerator';
 import { apiClient } from '../services/api';
 import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem } from '../utils/treeUtils';
-import { Plus, Folder, FileText, Loader2 } from 'lucide-react';
+import { Plus, Folder, FileText, Loader2, Sparkles } from 'lucide-react';
 
 export const VocabTree: React.FC = () => {
   const [tree, setTree] = useState<TreeItem[]>([]);
@@ -13,6 +14,7 @@ export const VocabTree: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showAddInput, setShowAddInput] = useState(false);
   const [addType, setAddType] = useState<'folder' | 'card'>('folder');
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -156,6 +158,10 @@ export const VocabTree: React.FC = () => {
     setShowAddInput(true);
   };
 
+  const handleAIGeneratorSuccess = () => {
+    loadTree(); // Reload the tree after AI generation
+  };
+
   // Note: flattenTree utility is available for future drag and drop enhancements
 
   if (isLoading) {
@@ -189,6 +195,13 @@ export const VocabTree: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Vocabulary Tree</h1>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowAIGenerator(true)}
+            className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Generate with AI</span>
+          </button>
           <button
             onClick={handleAddFolder}
             className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
@@ -270,6 +283,14 @@ export const VocabTree: React.FC = () => {
           )}
         </Droppable>
       </DragDropContext>
+
+      {/* AI Tree Generator Modal */}
+      {showAIGenerator && (
+        <AITreeGenerator
+          onClose={() => setShowAIGenerator(false)}
+          onSuccess={handleAIGeneratorSuccess}
+        />
+      )}
     </div>
   );
 };
