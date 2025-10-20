@@ -88,5 +88,20 @@ export interface HTTPValidationError {
   detail: ValidationError[];
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  created_at: string;
+  user_created: number;
+  is_default?: boolean;
+}
+
+export interface CategoryListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  items: Category[];
+}
+
 // Note: ApiResponse and ApiError types are defined here for future use
 // but are not currently used in the implementation

@@ -5,7 +5,9 @@ import {
   Card,
   CardCreate,
   CardUpdate,
-  CardListResponse
+  CardListResponse,
+  Category,
+  CategoryListResponse
 } from '../types/api';
 
 class ApiClient {
@@ -99,8 +101,20 @@ class ApiClient {
     return response.data;
   }
 
-  async getCardsHierarchy(): Promise<Card[]> {
-    const response: AxiosResponse<Card[]> = await this.client.get('/cards/hierarchy');
+  async getCardsHierarchy(categoryId?: number): Promise<Card[]> {
+    const params = categoryId ? { category_id: categoryId } : {};
+    const response: AxiosResponse<Card[]> = await this.client.get('/cards/hierarchy', { params });
+    return response.data;
+  }
+
+  // Categories
+  async getCategories(): Promise<Category[]> {
+    const response: AxiosResponse<CategoryListResponse> = await this.client.get('/categories/');
+    return response.data.items;
+  }
+
+  async createCategory(name: string): Promise<Category> {
+    const response: AxiosResponse<Category> = await this.client.post('/categories/', { name });
     return response.data;
   }
 

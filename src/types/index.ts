@@ -22,6 +22,7 @@ export interface TreeItem {
   is_folder: boolean;
   children: TreeItem[];
   isExpanded?: boolean;
+  category_id?: number;
   // Card-specific properties
   example_phrases?: string[] | null;
   meanings?: string[] | null;
@@ -33,6 +34,13 @@ export interface TreeItem {
   notes?: string | null;
   created_at?: string;
   user_created?: number;
+}
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  isExpanded: boolean;
+  children: TreeItem[];
 }
 
 export interface DragItem {

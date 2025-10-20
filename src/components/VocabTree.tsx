@@ -1,51 +1,107 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DragDropContext, DropResult, Droppable } from 'react-beautiful-dnd';
-import { TreeItem } from '../types';
-import { TreeNode } from './TreeNode';
+import { TreeItem, CategoryItem } from '../types';
+import { CategoryNode } from './CategoryNode';
 import { AddItemInput } from './AddItemInput';
 import { AITreeGenerator } from './AITreeGenerator';
 import { apiClient } from '../services/api';
 import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem } from '../utils/treeUtils';
-import { Plus, Folder, FileText, Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Tag } from 'lucide-react';
 
 export const VocabTree: React.FC = () => {
-  const [tree, setTree] = useState<TreeItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddInput, setShowAddInput] = useState(false);
-  const [addType, setAddType] = useState<'folder' | 'card'>('folder');
   const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   // Load initial data
   useEffect(() => {
-    loadTree();
+    loadCategories();
   }, []);
 
-  const loadTree = async () => {
+  const loadCategories = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const cards = await apiClient.getCardsHierarchy();
-      const treeData = buildTree(cards);
-      setTree(treeData);
+      
+      // First try to get categories
+      let categoriesData;
+      try {
+        categoriesData = await apiClient.getCategories();
+        console.log('Categories response:', categoriesData);
+      } catch (categoryErr: any) {
+        console.error('Categories endpoint error:', categoryErr);
+        // If categories endpoint doesn't exist, fall back to loading all cards without categories
+        const allCards = await apiClient.getCardsHierarchy();
+        const treeData = buildTree(allCards);
+        
+        // Create a default "All Items" category
+        setCategories([{
+          id: 0,
+          name: 'All Items',
+          isExpanded: true,
+          children: treeData,
+        }]);
+        setIsLoading(false);
+        return;
+      }
+      
+      const categoriesWithChildren = await Promise.all(
+        categoriesData.map(async (category) => {
+          try {
+            const cards = await apiClient.getCardsHierarchy(category.id);
+            const treeData = buildTree(cards);
+            return {
+              id: category.id,
+              name: category.name,
+              isExpanded: false,
+              children: treeData,
+            };
+          } catch (err: any) {
+            console.error(`Error loading cards for category ${category.id}:`, err);
+            return {
+              id: category.id,
+              name: category.name,
+              isExpanded: false,
+              children: [],
+            };
+          }
+        })
+      );
+      setCategories(categoriesWithChildren);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load vocabulary tree');
-      console.error('Error loading tree:', err);
+      console.error('Error loading categories:', err);
+      setError(`Failed to load categories: ${err.message || err.response?.data?.detail || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleToggle = useCallback((id: number) => {
-    setTree(prevTree => 
-      updateTreeItem(prevTree, id, { isExpanded: !findTreeItem(prevTree, id)?.isExpanded })
+    setCategories(prevCategories => 
+      prevCategories.map(category => {
+        if (category.id === id) {
+          return { ...category, isExpanded: !category.isExpanded };
+        }
+        return {
+          ...category,
+          children: updateTreeItem(category.children, id, { 
+            isExpanded: !findTreeItem(category.children, id)?.isExpanded 
+          })
+        };
+      })
     );
   }, []);
 
   const handleRename = useCallback(async (id: number, newName: string) => {
     try {
       await apiClient.updateCard(id, { name: newName });
-      setTree(prevTree => updateTreeItem(prevTree, id, { name: newName }));
+      setCategories(prevCategories => 
+        prevCategories.map(category => ({
+          ...category,
+          children: updateTreeItem(category.children, id, { name: newName })
+        }))
+      );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to rename item');
       console.error('Error renaming item:', err);
@@ -59,7 +115,12 @@ export const VocabTree: React.FC = () => {
 
     try {
       await apiClient.deleteCard(id);
-      setTree(prevTree => removeTreeItem(prevTree, id));
+      setCategories(prevCategories => 
+        prevCategories.map(category => ({
+          ...category,
+          children: removeTreeItem(category.children, id)
+        }))
+      );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete item');
       console.error('Error deleting item:', err);
@@ -83,11 +144,14 @@ export const VocabTree: React.FC = () => {
         children: [],
       };
 
-      setTree(prevTree => 
-        updateTreeItem(prevTree, parentId, {
-          children: [...(findTreeItem(prevTree, parentId)?.children || []), newTreeItem],
-          isExpanded: true, // Auto-expand when adding children
-        })
+      setCategories(prevCategories => 
+        prevCategories.map(category => ({
+          ...category,
+          children: updateTreeItem(category.children, parentId, {
+            children: [...(findTreeItem(category.children, parentId)?.children || []), newTreeItem],
+            isExpanded: true, // Auto-expand when adding children
+          })
+        }))
       );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to add item');
@@ -95,71 +159,43 @@ export const VocabTree: React.FC = () => {
     }
   }, []);
 
-  const handleAddRootItem = async (name: string) => {
+  const handleAddCategory = async (name: string) => {
     try {
-      const newCard = await apiClient.createCard({
-        name,
-        parent_id: null,
-        is_folder: addType === 'folder',
-      });
-      
-      const newTreeItem: TreeItem = {
-        id: newCard.id,
-        name: newCard.name,
-        type: addType,
-        parent_id: null,
-        is_folder: newCard.is_folder,
+      const newCategory = await apiClient.createCategory(name);
+      const newCategoryItem: CategoryItem = {
+        id: newCategory.id,
+        name: newCategory.name,
+        isExpanded: false,
         children: [],
       };
 
-      setTree(prevTree => [...prevTree, newTreeItem]);
-      setShowAddInput(false);
+      setCategories(prevCategories => [...prevCategories, newCategoryItem]);
+      setShowAddCategory(false);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to add item');
-      console.error('Error adding root item:', err);
+      console.error('Error adding category:', err);
+      setError(`Failed to add category: ${err.message || err.response?.data?.detail || 'Unknown error'}`);
     }
   };
 
   const handleMove = useCallback(async (itemId: number, newParentId: number | null) => {
     try {
       await apiClient.moveCard(itemId, newParentId);
-      setTree(prevTree => moveTreeItem(prevTree, itemId, newParentId));
+      setCategories(prevCategories => 
+        prevCategories.map(category => ({
+          ...category,
+          children: moveTreeItem(category.children, itemId, newParentId)
+        }))
+      );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to move item');
       console.error('Error moving item:', err);
     }
   }, []);
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) {
-      return;
-    }
 
-    const { draggableId, destination } = result;
-    const itemId = parseInt(draggableId);
-    
-    // Find the destination parent ID
-    let newParentId: number | null = null;
-    
-    if (destination.droppableId !== 'root') {
-      newParentId = parseInt(destination.droppableId);
-    }
-
-    handleMove(itemId, newParentId);
-  };
-
-  const handleAddFolder = () => {
-    setAddType('folder');
-    setShowAddInput(true);
-  };
-
-  const handleAddCard = () => {
-    setAddType('card');
-    setShowAddInput(true);
-  };
 
   const handleAIGeneratorSuccess = () => {
-    loadTree(); // Reload the tree after AI generation
+    loadCategories(); // Reload categories after AI generation
   };
 
   // Note: flattenTree utility is available for future drag and drop enhancements
@@ -180,7 +216,7 @@ export const VocabTree: React.FC = () => {
       <div className="rounded-md bg-red-50 p-4">
         <div className="text-sm text-red-700">{error}</div>
         <button
-          onClick={loadTree}
+          onClick={loadCategories}
           className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
         >
           Try again
@@ -203,86 +239,57 @@ export const VocabTree: React.FC = () => {
             <span>Generate with AI</span>
           </button>
           <button
-            onClick={handleAddFolder}
-            className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+            onClick={() => setShowAddCategory(true)}
+            className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
           >
-            <Folder className="h-4 w-4" />
-            <span>Add Folder</span>
-          </button>
-          <button
-            onClick={handleAddCard}
-            className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <FileText className="h-4 w-4" />
-            <span>Add Card</span>
+            <Tag className="h-4 w-4" />
+            <span>Add Category</span>
           </button>
         </div>
       </div>
 
-      {/* Add item input */}
-      {showAddInput && (
+      {/* Add category input */}
+      {showAddCategory && (
         <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
           <AddItemInput
             parentId={null}
-            type={addType}
-            onSubmit={handleAddRootItem}
-            onCancel={() => setShowAddInput(false)}
-            placeholder={`Add ${addType}...`}
+            type="folder"
+            onSubmit={handleAddCategory}
+            onCancel={() => setShowAddCategory(false)}
+            placeholder="Add category..."
           />
         </div>
       )}
 
-      {/* Tree */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="root" type="TREE_ITEM">
-          {(provided, snapshot) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className={`
-                min-h-64 border border-gray-200 rounded-lg
-                ${snapshot.isDraggingOver ? 'bg-blue-50' : 'bg-white'}
-              `}
+      {/* Categories */}
+      <div className="space-y-4">
+        {categories.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500 border border-gray-200 rounded-lg bg-white">
+            <Tag className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-2">No categories yet</p>
+            <p className="text-sm mb-4">Start by adding your first category</p>
+            <button
+              onClick={() => setShowAddCategory(true)}
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md"
             >
-              {tree.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                  <Plus className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="text-lg font-medium mb-2">No vocabulary items yet</p>
-                  <p className="text-sm mb-4">Start by adding your first folder or card</p>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleAddFolder}
-                      className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md"
-                    >
-                      Add Folder
-                    </button>
-                    <button
-                      onClick={handleAddCard}
-                      className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md"
-                    >
-                      Add Card
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                tree.map((item, index) => (
-                  <TreeNode
-                    key={item.id}
-                    item={item}
-                    onToggle={handleToggle}
-                    onRename={handleRename}
-                    onDelete={handleDelete}
-                    onAddChild={handleAddChild}
-                    onMove={handleMove}
-                    level={0}
-                  />
-                ))
-              )}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+              Add Category
+            </button>
+          </div>
+        ) : (
+          categories.map((category) => (
+            <CategoryNode
+              key={category.id}
+              category={category}
+              onToggle={handleToggle}
+              onRename={handleRename}
+              onDelete={handleDelete}
+              onAddChild={handleAddChild}
+              onMove={handleMove}
+              onCategoryUpdate={loadCategories}
+            />
+          ))
+        )}
+      </div>
 
       {/* AI Tree Generator Modal */}
       {showAIGenerator && (
