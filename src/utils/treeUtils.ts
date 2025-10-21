@@ -29,10 +29,36 @@ export const cardToTreeItem = (card: Card): TreeItem => {
 };
 
 // Build tree structure from hierarchical cards (from /cards/hierarchy endpoint)
-export const buildTree = (cards: Card[]): TreeItem[] => {
+export const buildTree = (cards: Card[], expandedIds?: Set<number>): TreeItem[] => {
   // The /cards/hierarchy endpoint returns cards with children already populated
   // So we just need to recursively convert them to TreeItems
-  const treeItems = cards.map(card => cardToTreeItem(card));
+  const cardToTreeItemWithExpanded = (card: Card): TreeItem => {
+    const children = card.children && card.children.length > 0 
+      ? card.children.map(childCard => cardToTreeItemWithExpanded(childCard))
+      : [];
+    
+    return {
+      id: card.id,
+      name: card.name,
+      type: card.is_folder ? 'folder' : 'card',
+      parent_id: card.parent_id,
+      is_folder: card.is_folder,
+      children: children,
+      isExpanded: expandedIds ? expandedIds.has(card.id) : false, // Preserve expanded state
+      example_phrases: card.example_phrases,
+      meanings: card.meanings,
+      grammar_roles: card.grammar_roles,
+      collocations: card.collocations,
+      synonyms: card.synonyms,
+      antonyms: card.antonyms,
+      use_count: card.use_count,
+      notes: card.notes,
+      created_at: card.created_at,
+      user_created: card.user_created,
+    };
+  };
+
+  const treeItems = cards.map(card => cardToTreeItemWithExpanded(card));
   
   // Sort children by name
   const sortChildren = (items: TreeItem[]) => {
@@ -165,5 +191,24 @@ export const flattenTree = (tree: TreeItem[]): TreeItem[] => {
   
   traverse(tree);
   return result;
+};
+
+// Get all expanded item IDs from a tree
+export const getExpandedIds = (tree: TreeItem[]): Set<number> => {
+  const expandedIds = new Set<number>();
+  
+  const traverse = (items: TreeItem[]) => {
+    items.forEach(item => {
+      if (item.isExpanded) {
+        expandedIds.add(item.id);
+      }
+      if (item.children.length > 0) {
+        traverse(item.children);
+      }
+    });
+  };
+  
+  traverse(tree);
+  return expandedIds;
 };
 

@@ -20,6 +20,7 @@ interface CategoryNodeProps {
   onAddChild: (parentId: number, type: 'folder' | 'card', name: string) => void;
   onMove: (itemId: number, newParentId: number | null) => void;
   onCategoryUpdate: () => void;
+  onCategoryRefresh: (categoryId: number, expandFolderId?: number) => void;
 }
 
 export const CategoryNode: React.FC<CategoryNodeProps> = ({
@@ -30,6 +31,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   onAddChild,
   onMove,
   onCategoryUpdate,
+  onCategoryRefresh,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(category.name);
@@ -85,14 +87,33 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
     try {
       await apiClient.createCard({
         name,
-        parent_id: category.id,
+        parent_id: null, // Root level items in category
         is_folder: addType === 'folder',
+        category_id: category.id,
       });
 
-      onAddChild(category.id, addType, name);
+      // Refresh only this specific category
+      onCategoryRefresh(category.id);
       setShowAddInput(false);
     } catch (err: any) {
       console.error('Error adding child:', err);
+      alert('Failed to add item');
+    }
+  };
+
+  const handleAddChildToFolder = async (parentId: number, type: 'folder' | 'card', name: string) => {
+    try {
+      await apiClient.createCard({
+        name,
+        parent_id: parentId, // Set the folder as parent
+        is_folder: type === 'folder',
+        category_id: category.id, // Keep the same category
+      });
+
+      // Refresh the category to show the new card, and expand the parent folder
+      onCategoryRefresh(category.id, parentId);
+    } catch (err: any) {
+      console.error('Error adding child to folder:', err);
       alert('Failed to add item');
     }
   };
@@ -211,7 +232,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
               onToggle={onToggle}
               onRename={onRename}
               onDelete={onDelete}
-              onAddChild={onAddChild}
+              onAddChild={handleAddChildToFolder}
               onMove={onMove}
               level={0}
             />

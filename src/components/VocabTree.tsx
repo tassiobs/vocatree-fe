@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TreeItem, CategoryItem } from '../types';
+import { CategoryItem } from '../types';
 import { CategoryNode } from './CategoryNode';
 import { AddItemInput } from './AddItemInput';
 import { AITreeGenerator } from './AITreeGenerator';
 import { apiClient } from '../services/api';
-import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem } from '../utils/treeUtils';
+import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem, getExpandedIds } from '../utils/treeUtils';
 import { Loader2, Sparkles, Tag } from 'lucide-react';
 
 export const VocabTree: React.FC = () => {
@@ -127,35 +127,48 @@ export const VocabTree: React.FC = () => {
     }
   }, []);
 
-  const handleAddChild = useCallback(async (parentId: number, type: 'folder' | 'card', name: string) => {
+  const handleCategoryRefresh = useCallback(async (categoryId: number, expandFolderId?: number) => {
     try {
-      const newCard = await apiClient.createCard({
-        name,
-        parent_id: parentId,
-        is_folder: type === 'folder',
+      setCategories(prevCategories => {
+        // Find the category to get current expanded state
+        const currentCategory = prevCategories.find(cat => cat.id === categoryId);
+        
+        // Get currently expanded IDs
+        const expandedIds = currentCategory ? getExpandedIds(currentCategory.children) : new Set<number>();
+        
+        // If we have a folder to expand, add it to the set
+        if (expandFolderId) {
+          expandedIds.add(expandFolderId);
+        }
+        
+        return prevCategories; // Return unchanged for now, will update after fetch
       });
       
-      const newTreeItem: TreeItem = {
-        id: newCard.id,
-        name: newCard.name,
-        type: type,
-        parent_id: newCard.parent_id,
-        is_folder: newCard.is_folder,
-        children: [],
-      };
-
-      setCategories(prevCategories => 
-        prevCategories.map(category => ({
-          ...category,
-          children: updateTreeItem(category.children, parentId, {
-            children: [...(findTreeItem(category.children, parentId)?.children || []), newTreeItem],
-            isExpanded: true, // Auto-expand when adding children
-          })
-        }))
-      );
+      const updatedCards = await apiClient.getCardsHierarchy(categoryId);
+      
+      setCategories(prevCategories => {
+        const currentCategory = prevCategories.find(cat => cat.id === categoryId);
+        const expandedIds = currentCategory ? getExpandedIds(currentCategory.children) : new Set<number>();
+        
+        if (expandFolderId) {
+          expandedIds.add(expandFolderId);
+        }
+        
+        const updatedTreeData = buildTree(updatedCards, expandedIds);
+        
+        return prevCategories.map(category => {
+          if (category.id === categoryId) {
+            return {
+              ...category,
+              children: updatedTreeData,
+              isExpanded: true, // Auto-expand when adding children
+            };
+          }
+          return category;
+        });
+      });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to add item');
-      console.error('Error adding item:', err);
+      console.error('Error refreshing category:', err);
     }
   }, []);
 
@@ -283,9 +296,10 @@ export const VocabTree: React.FC = () => {
               onToggle={handleToggle}
               onRename={handleRename}
               onDelete={handleDelete}
-              onAddChild={handleAddChild}
+              onAddChild={() => {}} // Not used anymore
               onMove={handleMove}
               onCategoryUpdate={loadCategories}
+              onCategoryRefresh={handleCategoryRefresh}
             />
           ))
         )}

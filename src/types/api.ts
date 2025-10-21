@@ -44,6 +44,7 @@ export interface CardCreate {
   name: string;
   parent_id?: number | null;
   is_folder?: boolean;
+  category_id?: number;
   example_phrases?: string[] | null;
   meanings?: string[] | null;
   grammar_roles?: string[] | null;
