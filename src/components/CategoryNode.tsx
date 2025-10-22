@@ -7,9 +7,11 @@ import {
   ChevronDown, 
   Folder, 
   Plus,
-  Edit2,
-  Trash2
+  Hash,
+  Tag
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAddChildAction, createMoveAction, createDuplicateAction } from './DropdownMenu';
+import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
 
 interface CategoryNodeProps {
@@ -66,18 +68,30 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete the category "${category.name}" and all its contents?`)) {
-      return;
-    }
+    // Create a temporary TreeItem structure for the category to use with conditional delete
+    const categoryAsTreeItem = {
+      id: category.id,
+      name: category.name,
+      type: 'folder' as const,
+      parent_id: null,
+      is_folder: true,
+      children: category.children,
+      isExpanded: category.isExpanded,
+    };
 
     try {
       setIsDeleting(true);
-      await apiClient.deleteCard(category.id);
-      onDelete(category.id);
-      onCategoryUpdate();
-    } catch (err: any) {
-      console.error('Error deleting category:', err);
-      alert('Failed to delete category');
+      await handleConditionalDelete(
+        categoryAsTreeItem,
+        () => {
+          onDelete(category.id);
+          onCategoryUpdate();
+        },
+        (error) => {
+          console.error('Error deleting category:', error);
+          alert('Failed to delete category');
+        }
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -128,29 +142,54 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
     setShowAddInput(true);
   };
 
+  // Create dropdown menu items for category
+  const getCategoryDropdownItems = (): DropdownMenuItem[] => {
+    return [
+      createEditAction(() => setIsEditing(true)),
+      createDeleteAction(handleDelete),
+      createAddChildAction(handleAddFolder, 'folder'),
+      createAddChildAction(handleAddCard, 'card'),
+      createMoveAction(() => {
+        // TODO: Implement move functionality for categories
+        console.log('Move action clicked for category:', category.id);
+      }),
+      createDuplicateAction(() => {
+        // TODO: Implement duplicate functionality for categories
+        console.log('Duplicate action clicked for category:', category.id);
+      }),
+    ];
+  };
+
+  // Calculate total items in category
+  const totalItems = category.children.length;
+  const folderCount = category.children.filter(child => child.is_folder).length;
+  const cardCount = category.children.filter(child => !child.is_folder).length;
+
   return (
-    <div className="border border-gray-200 rounded-lg mb-4 bg-white">
+    <div className="border border-gray-200 rounded-xl mb-6 bg-white shadow-sm hover:shadow-md transition-shadow">
       {/* Category Header */}
-      <div className="group flex items-center py-3 px-4 hover:bg-gray-50 rounded-t-lg border-b border-gray-100">
+      <div className="group flex items-center py-4 px-5 hover:bg-purple-50 rounded-t-xl border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
         <div className="flex items-center flex-1 min-w-0">
           {/* Expand/collapse button */}
           <button
             onClick={() => onToggle(category.id)}
-            className="mr-3 p-1 hover:bg-gray-200 rounded"
+            className="mr-4 p-2 hover:bg-purple-100 rounded-lg transition-colors"
           >
             {category.isExpanded ? (
-              <ChevronDown className="h-5 w-5 text-gray-600" />
+              <ChevronDown className="h-5 w-5 text-purple-600" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-gray-600" />
+              <ChevronRight className="h-5 w-5 text-purple-600" />
             )}
           </button>
 
           {/* Category Icon */}
-          <div className="mr-3 flex-shrink-0">
-            <Folder className="h-5 w-5 text-purple-600" />
+          <div className="mr-4 flex-shrink-0">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Tag className="h-6 w-6 text-purple-600" />
+            </div>
           </div>
 
-          {/* Category Name */}
+          {/* Category Name and Stats */}
           <div className="flex-1 min-w-0">
             {isEditing ? (
               <input
@@ -159,59 +198,70 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
                 onChange={(e) => setEditName(e.target.value)}
                 onBlur={handleRename}
                 onKeyDown={handleKeyDown}
-                className="w-full border-0 outline-none text-lg font-semibold bg-transparent"
+                className="w-full border-0 outline-none text-xl font-bold bg-transparent text-purple-900"
                 autoFocus
               />
             ) : (
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {category.name}
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-purple-900 truncate">
+                  {category.name}
+                </h3>
+                {totalItems > 0 && (
+                  <div className="flex items-center space-x-4 mt-1">
+                    <div className="flex items-center text-sm text-purple-600">
+                      <Hash className="h-3 w-3 mr-1" />
+                      <span>{totalItems} total</span>
+                    </div>
+                    {folderCount > 0 && (
+                      <div className="flex items-center text-sm text-blue-600">
+                        <Folder className="h-3 w-3 mr-1" />
+                        <span>{folderCount} folders</span>
+                      </div>
+                    )}
+                    {cardCount > 0 && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Hash className="h-3 w-3 mr-1" />
+                        <span>{cardCount} cards</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           {/* Add buttons - always visible for categories */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             <button
               onClick={handleAddFolder}
-              className="p-1.5 hover:bg-blue-100 rounded bg-blue-50"
+              className="p-2 hover:bg-blue-100 rounded-lg bg-blue-50 transition-colors"
               title="Add folder"
             >
               <Folder className="h-4 w-4 text-blue-600" />
             </button>
             <button
               onClick={handleAddCard}
-              className="p-1.5 hover:bg-gray-200 rounded bg-gray-100"
+              className="p-2 hover:bg-gray-200 rounded-lg bg-gray-100 transition-colors"
               title="Add card"
             >
               <Plus className="h-4 w-4 text-gray-700" />
             </button>
           </div>
 
-          {/* Edit/Delete actions - show on hover */}
-          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-            <button
-              onClick={() => setIsEditing(true)}
-              className="p-1.5 hover:bg-gray-200 rounded"
-              title="Rename category"
-            >
-              <Edit2 className="h-4 w-4 text-gray-600" />
-            </button>
-            
-            <button
-              onClick={handleDelete}
+          {/* Actions dropdown menu */}
+          <div className="ml-3">
+            <DropdownMenu
+              items={getCategoryDropdownItems()}
+              className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               disabled={isDeleting}
-              className="p-1.5 hover:bg-gray-200 rounded text-red-600 disabled:opacity-50"
-              title="Delete category"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            />
           </div>
         </div>
       </div>
 
       {/* Add item input */}
       {showAddInput && (
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
           <AddItemInput
             parentId={category.id}
             type={addType}
@@ -224,28 +274,46 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
 
       {/* Category Children */}
       {category.isExpanded && category.children.length > 0 && (
-        <div className="p-4">
-          {category.children.map((child) => (
-            <TreeNode
-              key={child.id}
-              item={child}
-              onToggle={onToggle}
-              onRename={onRename}
-              onDelete={onDelete}
-              onAddChild={handleAddChildToFolder}
-              onMove={onMove}
-              level={0}
-            />
-          ))}
+        <div className="p-5 bg-gray-50/30">
+          <div className="space-y-1">
+            {category.children.map((child) => (
+              <TreeNode
+                key={child.id}
+                item={child}
+                onToggle={onToggle}
+                onRename={onRename}
+                onDelete={onDelete}
+                onAddChild={handleAddChildToFolder}
+                onMove={onMove}
+                level={0}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {/* Empty state */}
       {category.isExpanded && category.children.length === 0 && (
-        <div className="p-8 text-center text-gray-500">
-          <Folder className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p className="text-sm">No items in this category yet</p>
-          <p className="text-xs mt-1">Add folders or cards to get started</p>
+        <div className="p-12 text-center text-gray-500 bg-gray-50/30">
+          <div className="p-4 bg-white rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+            <Tag className="h-8 w-8 text-purple-300" />
+          </div>
+          <p className="text-lg font-medium text-gray-600 mb-2">No items in this category yet</p>
+          <p className="text-sm text-gray-500 mb-4">Add folders or cards to get started</p>
+          <div className="flex items-center justify-center space-x-2">
+            <button
+              onClick={handleAddFolder}
+              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            >
+              Add Folder
+            </button>
+            <button
+              onClick={handleAddCard}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Add Card
+            </button>
+          </div>
         </div>
       )}
     </div>

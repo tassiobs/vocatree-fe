@@ -86,6 +86,10 @@ class ApiClient {
     await this.client.delete(`/cards/${id}`);
   }
 
+  async deleteCardBulk(id: number): Promise<void> {
+    await this.client.delete(`/cards/${id}/bulk`);
+  }
+
   async moveCard(id: number, newParentId: number | null): Promise<void> {
     await this.client.patch(`/cards/${id}/move`, { new_parent_id: newParentId });
   }

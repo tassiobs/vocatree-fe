@@ -109,10 +109,6 @@ export const VocabTree: React.FC = () => {
   }, []);
 
   const handleDelete = useCallback(async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) {
-      return;
-    }
-
     try {
       await apiClient.deleteCard(id);
       setCategories(prevCategories => 
