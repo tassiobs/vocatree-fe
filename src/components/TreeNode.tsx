@@ -122,7 +122,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     <div className="relative">
       {/* Main item container */}
       <div 
-        className={`group flex items-center transition-all duration-200 ${
+        className={`group transition-all duration-200 ${
           isTopLevelFolder 
             ? 'py-3 px-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg mb-2 hover:bg-blue-100' 
             : isSubfolder
@@ -133,7 +133,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         }`}
         style={{ marginLeft: `${indentPx}px` }}
       >
-        <div className="flex items-center flex-1 min-w-0">
+        {/* Desktop layout - single row */}
+        <div className="hidden sm:flex items-center flex-1 min-w-0">
           {/* Drag handle - only show for folders */}
           {item.is_folder && (
             <div className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
@@ -233,8 +234,130 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           <div className="ml-2">
             <DropdownMenu
               items={getDropdownItems()}
-              className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
             />
+          </div>
+        </div>
+
+        {/* Mobile layout - responsive stacked design */}
+        <div className="sm:hidden">
+          {/* Top row: Icon, name, and expand button */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center flex-1 min-w-0">
+              {/* Drag handle - only show for folders */}
+              {item.is_folder && (
+                <div className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
+                  <GripVertical className="h-3 w-3 text-gray-400" />
+                </div>
+              )}
+
+              {/* Expand/collapse button - only for items with children */}
+              {hasChildren && (
+                <button
+                  onClick={() => onToggle(item.id)}
+                  className={`mr-2 p-1.5 hover:bg-gray-200 rounded transition-colors ${
+                    isTopLevelFolder ? 'hover:bg-blue-200' : ''
+                  }`}
+                  style={{ minWidth: '44px', minHeight: '44px' }}
+                >
+                  {item.isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-gray-600" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-gray-600" />
+                  )}
+                </button>
+              )}
+
+              {/* Spacer for items without expand button */}
+              {!hasChildren && <div className="w-6 mr-2" />}
+
+              {/* Icon with different styling based on type and level */}
+              <div className="mr-3 flex-shrink-0">
+                {item.is_folder ? (
+                  <Folder className={`${isTopLevelFolder ? 'h-5 w-5 text-blue-600' : 'h-4 w-4 text-blue-500'}`} />
+                ) : (
+                  <FileText className="h-3.5 w-3.5 text-gray-500" />
+                )}
+              </div>
+
+              {/* Name with appropriate styling */}
+              <div className="flex-1 min-w-0">
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onBlur={handleRename}
+                    onKeyDown={handleKeyDown}
+                    className={`w-full border-0 outline-none bg-transparent ${
+                      isTopLevelFolder ? 'text-lg font-semibold' : 'text-sm'
+                    }`}
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    onClick={isCard ? handleCardClick : undefined}
+                    className={`truncate text-left w-full transition-colors ${
+                      isTopLevelFolder 
+                        ? 'text-lg font-semibold text-gray-900 hover:text-blue-700' 
+                        : isSubfolder
+                        ? 'text-sm font-medium text-gray-800 hover:text-blue-600'
+                        : 'text-sm text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {item.name}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Actions dropdown menu - always visible on mobile */}
+            <div className="ml-2 flex-shrink-0">
+              <DropdownMenu
+                items={getDropdownItems()}
+                className="opacity-100"
+              />
+            </div>
+          </div>
+
+          {/* Bottom row: Item count and add buttons */}
+          <div className="flex items-center justify-between">
+            {/* Item count for folders */}
+            {item.is_folder && itemCount > 0 && (
+              <div className="flex items-center">
+                <Hash className="h-3 w-3 text-gray-400 mr-1" />
+                <span className="text-xs text-gray-500">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
+              </div>
+            )}
+
+            {/* Add buttons - only for folders */}
+            {item.is_folder && (
+              <div className="flex items-center space-x-2">
+                {item.parent_id === null && (
+                  <button
+                    onClick={handleAddFolder}
+                    className="px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                    title="Add subfolder"
+                    style={{ minHeight: '44px' }}
+                  >
+                    <Folder className="h-3 w-3 inline mr-1" />
+                    Add Folder
+                  </button>
+                )}
+                <button
+                  onClick={handleAddCard}
+                  className="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  title="Add card"
+                  style={{ minHeight: '44px' }}
+                >
+                  <Plus className="h-3 w-3 inline mr-1" />
+                  Add Card
+                </button>
+              </div>
+            )}
+
+            {/* Spacer if no add buttons */}
+            {!item.is_folder && <div />}
           </div>
         </div>
       </div>
