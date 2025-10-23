@@ -8,7 +8,8 @@ import {
   Folder, 
   Plus,
   Hash,
-  Tag
+  Tag,
+  FileText
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAddChildAction, createMoveAction, createDuplicateAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
@@ -208,22 +209,41 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
                 </h3>
                 {totalItems > 0 && (
                   <div className="flex items-center space-x-4 mt-1">
-                    <div className="flex items-center text-sm text-purple-600">
-                      <Hash className="h-3 w-3 mr-1" />
-                      <span>{totalItems} total</span>
-                    </div>
-                    {folderCount > 0 && (
-                      <div className="flex items-center text-sm text-blue-600">
-                        <Folder className="h-3 w-3 mr-1" />
-                        <span>{folderCount} folders</span>
-                      </div>
-                    )}
-                    {cardCount > 0 && (
-                      <div className="flex items-center text-sm text-gray-600">
+                    {/* Desktop stats - show text labels */}
+                    <div className="hidden lg:flex items-center space-x-4">
+                      <div className="flex items-center text-sm text-purple-600">
                         <Hash className="h-3 w-3 mr-1" />
-                        <span>{cardCount} cards</span>
+                        <span>{totalItems} total</span>
                       </div>
-                    )}
+                      {folderCount > 0 && (
+                        <div className="flex items-center text-sm text-blue-600">
+                          <Folder className="h-3 w-3 mr-1" />
+                          <span>{folderCount} folders</span>
+                        </div>
+                      )}
+                      {cardCount > 0 && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Hash className="h-3 w-3 mr-1" />
+                          <span>{cardCount} cards</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Mobile stats - icon + number only */}
+                    <div className="lg:hidden stats flex items-center space-x-3">
+                      {folderCount > 0 && (
+                        <div className="flex items-center bg-blue-50 px-2 py-1 rounded-md">
+                          <Folder className="h-3 w-3 text-blue-600 mr-1" />
+                          <span className="text-xs font-medium text-blue-700">{folderCount}</span>
+                        </div>
+                      )}
+                      {cardCount > 0 && (
+                        <div className="flex items-center bg-gray-50 px-2 py-1 rounded-md">
+                          <FileText className="h-3 w-3 text-gray-600 mr-1" />
+                          <span className="text-xs font-medium text-gray-700">{cardCount}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

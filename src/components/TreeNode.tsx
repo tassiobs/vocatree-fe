@@ -134,7 +134,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         style={{ marginLeft: `${indentPx}px` }}
       >
         {/* Desktop layout - single row */}
-        <div className="hidden sm:flex items-center flex-1 min-w-0">
+        <div className="hidden lg:flex items-center flex-1 min-w-0">
           {/* Drag handle - only show for folders */}
           {item.is_folder && (
             <div className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
@@ -200,7 +200,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             )}
           </div>
 
-          {/* Item count for folders */}
+          {/* Item count for folders - Desktop */}
           {item.is_folder && itemCount > 0 && (
             <div className="mr-2 flex items-center">
               <Hash className="h-3 w-3 text-gray-400 mr-1" />
@@ -240,7 +240,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         </div>
 
         {/* Mobile layout - responsive stacked design */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {/* Top row: Icon, name, and expand button */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center flex-1 min-w-0">
@@ -322,11 +322,31 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
           {/* Bottom row: Item count and add buttons */}
           <div className="flex items-center justify-between">
-            {/* Item count for folders */}
+            {/* Stats section - Mobile */}
             {item.is_folder && itemCount > 0 && (
-              <div className="flex items-center">
-                <Hash className="h-3 w-3 text-gray-400 mr-1" />
-                <span className="text-xs text-gray-500">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
+              <div className="stats flex items-center space-x-4">
+                {/* Count individual items by type */}
+                {(() => {
+                  const folderCount = item.children?.filter(child => child.is_folder).length || 0;
+                  const cardCount = item.children?.filter(child => !child.is_folder).length || 0;
+                  
+                  return (
+                    <>
+                      {folderCount > 0 && (
+                        <div className="flex items-center bg-blue-50 px-2 py-1 rounded-md">
+                          <Folder className="h-3 w-3 text-blue-600 mr-1" />
+                          <span className="text-xs font-medium text-blue-700">{folderCount}</span>
+                        </div>
+                      )}
+                      {cardCount > 0 && (
+                        <div className="flex items-center bg-gray-50 px-2 py-1 rounded-md">
+                          <FileText className="h-3 w-3 text-gray-600 mr-1" />
+                          <span className="text-xs font-medium text-gray-700">{cardCount}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
