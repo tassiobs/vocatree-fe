@@ -122,6 +122,15 @@ class ApiClient {
     return response.data;
   }
 
+  async generateAITree(data: {
+    language: string;
+    category_name: string;
+    prompt?: string;
+  }): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.post('/categories/ai-generate-tree', data);
+    return response.data;
+  }
+
   // Utility method to set auth token
   setAuthToken(token: string): void {
     localStorage.setItem('auth_token', token);

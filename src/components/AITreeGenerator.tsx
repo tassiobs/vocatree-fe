@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Loader2 } from 'lucide-react';
+import { apiClient } from '../services/api';
 
 interface AITreeGeneratorProps {
   onClose: () => void;
@@ -7,16 +8,17 @@ interface AITreeGeneratorProps {
 }
 
 export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuccess }) => {
-  const [folderName, setFolderName] = useState('');
+  const [categoryName, setCategoryName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!folderName.trim()) {
-      setError('Folder name is required');
+    if (!categoryName.trim()) {
+      setError('Category name is required');
       return;
     }
 
@@ -24,53 +26,46 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
     setError(null);
 
     try {
-      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-      
-      const requestBody: any = {
-        word: folderName.trim(),
-        prompt: prompt.trim(),
+      const requestBody = {
+        language: 'English',
+        category_name: categoryName.trim(),
+        prompt: prompt.trim() || undefined,
       };
       
-      const response = await fetch(`${baseURL}/cards/ai-generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to generate tree structure');
-      }
-
-      // Success - refresh the tree
+      const response = await apiClient.generateAITree(requestBody);
+      
+      // Show success message briefly before closing
+      setIsGenerating(false);
+      setShowSuccess(true);
       onSuccess();
-      onClose();
+      
+      // Close modal after showing success message
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate tree structure');
+      setError(err.response?.data?.detail || err.message || 'Failed to generate tree structure');
       console.error('Error generating AI tree:', err);
-    } finally {
       setIsGenerating(false);
     }
   };
 
   const handleClose = () => {
-    if (isGenerating) {
+    if (isGenerating && !showSuccess) {
       const confirmed = window.confirm(
         'AI generation is in progress. Are you sure you want to cancel?'
       );
       if (!confirmed) return;
     }
+    setShowSuccess(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <Sparkles className="h-6 w-6 text-purple-600" />
             <h2 className="text-2xl font-bold text-gray-900">Generate Tree with AI</h2>
@@ -90,10 +85,10 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
           <div className="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-10 rounded-lg">
             <Loader2 className="h-12 w-12 text-purple-600 animate-spin mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              AI is generating your tree...
+              AI is generating your category tree...
             </h3>
             <p className="text-gray-600 text-center max-w-md">
-              This may take a moment. Our AI is creating a structured vocabulary tree based on your input.
+              This may take a few seconds. Our AI is creating a complete category structure with folders and vocabulary cards based on your input.
             </p>
             <div className="mt-6 flex space-x-2">
               <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -103,8 +98,31 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
           </div>
         )}
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Success Overlay */}
+        {showSuccess && (
+          <div className="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-10 rounded-lg">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Category tree created successfully!
+            </h3>
+            <p className="text-gray-600 text-center max-w-md">
+              Your new category "{categoryName}" has been generated and added to your vocabulary tree.
+            </p>
+            <div className="mt-6 flex space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+            </div>
+          </div>
+        )}
+
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
               {error}
@@ -126,22 +144,22 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
             </div>
           </div>
 
-          {/* Folder Name */}
+          {/* Category Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Folder Name <span className="text-red-500">*</span>
+              Category Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              value={folderName}
-              onChange={(e) => setFolderName(e.target.value)}
-              placeholder="e.g., English Vocabulary, Spanish Basics, Business Terms..."
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              placeholder="e.g., Gym, Food, Travel, Business..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               required
               disabled={isGenerating}
             />
             <p className="text-xs text-gray-500 mt-1">
-              This will be the main folder name for your generated tree
+              This will be the main category name for your generated tree
             </p>
           </div>
 
@@ -165,18 +183,28 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
 
           {/* Examples */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Example prompts:</h4>
-            <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-              <li>"Create folders for beginner, intermediate, and advanced levels"</li>
-              <li>"Include daily conversation phrases with examples"</li>
-              <li>"Focus on technical vocabulary for software development"</li>
-              <li>"Organize by topics like food, travel, and shopping"</li>
-            </ul>
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Example prompts for inspiration:</h4>
+            <div className="space-y-2">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Gym:</span> "Create folders for Workouts and Useful Expressions, with subfolders for Legs, Arms, and Chest."
+              </div>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Food:</span> "Create folders for Food and Drinks with subfolders for Fruits, Vegetables, and Desserts."
+              </div>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Travel:</span> "Organize by transportation, accommodation, and activities with common phrases for each."
+              </div>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Business:</span> "Focus on meetings, presentations, and email communication with professional vocabulary."
+              </div>
+            </div>
           </div>
-        </form>
+
+          </form>
+        </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <button
             type="button"
             onClick={handleClose}
@@ -187,7 +215,7 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isGenerating || !folderName.trim()}
+            disabled={isGenerating || !categoryName.trim()}
             className="px-5 py-2.5 text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
           >
             <Sparkles className="h-4 w-4" />
