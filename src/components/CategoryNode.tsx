@@ -78,6 +78,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
       is_folder: true,
       children: category.children,
       isExpanded: category.isExpanded,
+      isCategory: true, // Add flag to identify this as a category
     };
 
     try {
@@ -85,7 +86,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
       await handleConditionalDelete(
         categoryAsTreeItem,
         () => {
-          onDelete(category.id);
+          // Category deletion should refresh the entire category list
           onCategoryUpdate();
         },
         (error) => {

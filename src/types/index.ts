@@ -23,6 +23,7 @@ export interface TreeItem {
   children: TreeItem[];
   isExpanded?: boolean;
   category_id?: number;
+  isCategory?: boolean; // Flag to identify if this is a category (not a regular folder)
   // Card-specific properties
   example_phrases?: string[] | null;
   meanings?: string[] | null;

@@ -108,19 +108,16 @@ export const VocabTree: React.FC = () => {
     }
   }, []);
 
-  const handleDelete = useCallback(async (id: number) => {
-    try {
-      await apiClient.deleteCard(id);
-      setCategories(prevCategories => 
-        prevCategories.map(category => ({
-          ...category,
-          children: removeTreeItem(category.children, id)
-        }))
-      );
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete item');
-      console.error('Error deleting item:', err);
-    }
+  const handleDelete = useCallback((id: number) => {
+    // This function is called after the API delete has already been handled by handleConditionalDelete
+    // We just need to update the UI state
+    console.log(`VocabTree handleDelete called for item ${id} - updating UI only`);
+    setCategories(prevCategories => 
+      prevCategories.map(category => ({
+        ...category,
+        children: removeTreeItem(category.children, id)
+      }))
+    );
   }, []);
 
   const handleCategoryRefresh = useCallback(async (categoryId: number, expandFolderId?: number) => {

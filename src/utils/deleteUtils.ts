@@ -15,31 +15,6 @@ export const getChildrenCount = (item: TreeItem): number => {
   return item.children ? item.children.length : 0;
 };
 
-/**
- * Recursively delete all children of a tree item
- */
-const deleteChildrenRecursively = async (children: TreeItem[]): Promise<void> => {
-  for (const child of children) {
-    console.log(`Deleting child:`, child.id, child.name, child.is_folder ? 'folder' : 'card');
-    // If child has children, delete them first
-    if (hasChildren(child)) {
-      await deleteChildrenRecursively(child.children || []);
-    }
-    // Delete the child itself
-    try {
-      await apiClient.deleteCard(child.id);
-      console.log(`Successfully deleted child:`, child.id, child.name);
-      // Small delay to prevent race conditions
-      await new Promise(resolve => setTimeout(resolve, 100));
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
-        console.warn(`Child ${child.id} (${child.name}) not found, continuing...`);
-      } else {
-        throw error; // Re-throw if it's not a 404 error
-      }
-    }
-  }
-};
 
 /**
  * Handle conditional delete for a tree item
@@ -50,6 +25,9 @@ export const handleConditionalDelete = async (
   onSuccess: () => void,
   onError?: (error: any) => void
 ): Promise<void> => {
+  const deleteId = Math.random().toString(36).substr(2, 9);
+  console.log(`[${deleteId}] Starting delete process for item ${item.id} (${item.name})`);
+  
   const hasChildItems = hasChildren(item);
   const childrenCount = getChildrenCount(item);
   
@@ -80,24 +58,29 @@ export const handleConditionalDelete = async (
   }
 
   try {
-    // Check if this is a category (has no parent_id and is_folder is true)
-    const isCategory = item.parent_id === null && item.is_folder;
+    console.log('Delete item details:', {
+      id: item.id,
+      name: item.name,
+      is_folder: item.is_folder,
+      parent_id: item.parent_id,
+      hasChildren: hasChildItems,
+      isCategory: item.isCategory
+    });
     
-    if (isCategory) {
-      // For categories, use the bulk delete endpoint
-      console.log(`Deleting category with bulk delete:`, item.id, item.name);
+    if (item.isCategory) {
+      // This is a category - use category bulk delete endpoint
+      console.log(`[${deleteId}] Deleting category with bulk delete:`, item.id, item.name);
       await apiClient.bulkDeleteCategory(item.id);
     } else if (hasChildItems) {
-      console.log(`Deleting ${item.is_folder ? 'folder' : 'category'} with children recursively:`, item.id, item.name);
-      // Delete all children first (recursively)
-      await deleteChildrenRecursively(item.children || []);
-      // Then delete the parent
-      console.log(`Deleting parent ${item.is_folder ? 'folder' : 'category'}:`, item.id, item.name);
-      await apiClient.deleteCard(item.id);
+      // This is a folder with children - use card bulk delete endpoint
+      console.log(`[${deleteId}] Deleting folder with children using card bulk delete:`, item.id, item.name);
+      await apiClient.deleteCardBulk(item.id);
     } else {
-      console.log(`Deleting ${item.is_folder ? 'folder' : 'card'} without children using standard delete:`, item.id, item.name);
+      // This is a card or folder without children - use standard delete endpoint
+      console.log(`[${deleteId}] Deleting ${item.is_folder ? 'folder' : 'card'} without children using standard delete:`, item.id, item.name);
       await apiClient.deleteCard(item.id);
     }
+    console.log(`[${deleteId}] Delete successful for item ${item.id}, calling onSuccess`);
     onSuccess();
   } catch (error: any) {
     console.error('Error deleting item:', error);
@@ -111,10 +94,18 @@ export const handleConditionalDelete = async (
       return;
     }
     
+    // Handle the specific "already deleted" error from backend
+    const errorMessage = error?.response?.data?.detail || error?.message || 'Unknown error occurred';
+    if (errorMessage.includes('has been deleted') || errorMessage.includes('not present')) {
+      console.warn(`Item ${item.id} appears to have been deleted already:`, errorMessage);
+      // Still call onSuccess to update the UI since the item is effectively gone
+      onSuccess();
+      return;
+    }
+    
     if (onError) {
       onError(error);
     } else {
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Unknown error occurred';
       const statusCode = error?.response?.status;
       
       if (statusCode === 404) {

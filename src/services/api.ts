@@ -83,11 +83,27 @@ class ApiClient {
   }
 
   async deleteCard(id: number): Promise<void> {
-    await this.client.delete(`/cards/${id}`);
+    const callId = Math.random().toString(36).substr(2, 9);
+    console.log(`[${callId}] API: DELETE /cards/${id}`);
+    try {
+      await this.client.delete(`/cards/${id}`);
+      console.log(`[${callId}] API: Successfully deleted card ${id}`);
+    } catch (error: any) {
+      console.error(`[${callId}] API: Failed to delete card ${id}:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async deleteCardBulk(id: number): Promise<void> {
-    await this.client.delete(`/cards/${id}/bulk`);
+    const callId = Math.random().toString(36).substr(2, 9);
+    console.log(`[${callId}] API: DELETE /cards/${id}/bulk`);
+    try {
+      await this.client.delete(`/cards/${id}/bulk`);
+      console.log(`[${callId}] API: Successfully bulk deleted card ${id}`);
+    } catch (error: any) {
+      console.error(`[${callId}] API: Failed to bulk delete card ${id}:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async moveCard(id: number, newParentId: number | null): Promise<void> {
@@ -132,7 +148,14 @@ class ApiClient {
   }
 
   async bulkDeleteCategory(id: number): Promise<void> {
-    await this.client.post(`/categories/bulk-delete`, { id });
+    console.log(`API: POST /categories/bulk-delete with category_id: ${id}`);
+    try {
+      await this.client.post(`/categories/bulk-delete`, { category_id: id });
+      console.log(`API: Successfully bulk deleted category ${id}`);
+    } catch (error: any) {
+      console.error(`API: Failed to bulk delete category ${id}:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 
   // Utility method to set auth token
