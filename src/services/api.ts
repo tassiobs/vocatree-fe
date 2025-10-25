@@ -131,6 +131,10 @@ class ApiClient {
     return response.data;
   }
 
+  async bulkDeleteCategory(id: number): Promise<void> {
+    await this.client.post(`/categories/bulk-delete`, { id });
+  }
+
   // Utility method to set auth token
   setAuthToken(token: string): void {
     localStorage.setItem('auth_token', token);

@@ -80,7 +80,14 @@ export const handleConditionalDelete = async (
   }
 
   try {
-    if (hasChildItems) {
+    // Check if this is a category (has no parent_id and is_folder is true)
+    const isCategory = item.parent_id === null && item.is_folder;
+    
+    if (isCategory) {
+      // For categories, use the bulk delete endpoint
+      console.log(`Deleting category with bulk delete:`, item.id, item.name);
+      await apiClient.bulkDeleteCategory(item.id);
+    } else if (hasChildItems) {
       console.log(`Deleting ${item.is_folder ? 'folder' : 'category'} with children recursively:`, item.id, item.name);
       // Delete all children first (recursively)
       await deleteChildrenRecursively(item.children || []);
