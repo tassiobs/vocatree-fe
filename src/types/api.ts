@@ -27,12 +27,16 @@ export interface Card {
   name: string;
   parent_id: number | null;
   is_folder: boolean;
+  category_id?: number | null;
   example_phrases: string[] | null;
   meanings: string[] | null;
   grammar_roles: string[] | null;
   collocations: string[] | null;
   synonyms: string[] | null;
   antonyms: string[] | null;
+  related_words: string[] | null;
+  word_forms: string[] | null;
+  videos: string[] | null;
   use_count: number;
   notes: string | null;
   created_at: string;
@@ -64,6 +68,9 @@ export interface CardUpdate {
   collocations?: string[] | null;
   synonyms?: string[] | null;
   antonyms?: string[] | null;
+  related_words?: string[] | null;
+  word_forms?: string[] | null;
+  videos?: string[] | null;
   use_count?: number | null;
   notes?: string | null;
 }

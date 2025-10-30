@@ -26,6 +26,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
   const [collocations, setCollocations] = useState<string[]>([]);
   const [synonyms, setSynonyms] = useState<string[]>([]);
   const [antonyms, setAntonyms] = useState<string[]>([]);
+  const [relatedWords, setRelatedWords] = useState<string[]>([]);
+  const [wordForms, setWordForms] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
   const [useCount, setUseCount] = useState(0);
   const [notes, setNotes] = useState('');
 
@@ -48,6 +51,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
       setCollocations(cardData.collocations || []);
       setSynonyms(cardData.synonyms || []);
       setAntonyms(cardData.antonyms || []);
+      setRelatedWords(cardData.related_words || []);
+      setWordForms(cardData.word_forms || []);
+      setVideos(cardData.videos || []);
       setUseCount(cardData.use_count || 0);
       setNotes(cardData.notes || '');
 
@@ -91,6 +97,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
         collocations: collocations.length > 0 ? collocations : null,
         synonyms: synonyms.length > 0 ? synonyms : null,
         antonyms: antonyms.length > 0 ? antonyms : null,
+        related_words: relatedWords.length > 0 ? relatedWords : null,
+        word_forms: wordForms.length > 0 ? wordForms : null,
+        videos: videos.length > 0 ? videos : null,
         use_count: useCount,
         notes: notes || null,
       });
@@ -258,6 +267,39 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
               markAsChanged();
             }}
             placeholder="Add antonym..."
+          />
+
+          {/* Related Words */}
+          <ListInput
+            label="Related Words"
+            items={relatedWords}
+            onChange={(items) => {
+              setRelatedWords(items);
+              markAsChanged();
+            }}
+            placeholder="Add related word..."
+          />
+
+          {/* Word Forms */}
+          <ListInput
+            label="Word Forms"
+            items={wordForms}
+            onChange={(items) => {
+              setWordForms(items);
+              markAsChanged();
+            }}
+            placeholder="Add word form..."
+          />
+
+          {/* Videos */}
+          <ListInput
+            label="Videos"
+            items={videos}
+            onChange={(items) => {
+              setVideos(items);
+              markAsChanged();
+            }}
+            placeholder="Add video..."
           />
 
           {/* Times Used (Slider) */}
