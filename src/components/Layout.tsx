@@ -1,10 +1,88 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { VocabTree } from './VocabTree';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Lock } from 'lucide-react';
+import { UpdatePassword } from './UpdatePassword';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
+  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Handle click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showUserMenu]);
+
+  const handleUserMenuClick = () => {
+    setShowUserMenu(!showUserMenu);
+  };
+
+  const handleUpdatePassword = () => {
+    setShowUserMenu(false);
+    setShowUpdatePassword(true);
+  };
+
+  const handleSignOut = () => {
+    setShowUserMenu(false);
+    logout();
+  };
+
+  // Get user initials from email for placeholder
+  const getUserInitials = (email: string | undefined): string => {
+    if (!email) return 'U';
+    const parts = email.split('@')[0].split(/[._-]/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return email[0].toUpperCase();
+  };
+
+  // Get background color based on email (for consistent color per user)
+  const getAvatarColor = (email: string | undefined): string => {
+    if (!email) return 'bg-blue-500';
+    const colors = [
+      'bg-blue-500',
+      'bg-purple-500',
+      'bg-pink-500',
+      'bg-indigo-500',
+      'bg-green-500',
+      'bg-red-500',
+      'bg-yellow-500',
+      'bg-teal-500',
+    ];
+    const index = email.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,18 +96,51 @@ export const Layout: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">{user?.email}</span>
+              <div className="relative">
+                <button
+                  ref={buttonRef}
+                  onClick={handleUserMenuClick}
+                  className="flex items-center justify-center w-10 h-10 rounded-full hover:ring-2 hover:ring-gray-300 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="User menu"
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="menu"
+                >
+                  {/* Profile Photo Placeholder */}
+                  <div className={`w-10 h-10 rounded-full ${getAvatarColor(user?.email)} flex items-center justify-center text-white font-medium text-sm shadow-sm`}>
+                    {user?.email ? (
+                      getUserInitials(user.email)
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
+                  </div>
+                </button>
+
+                {/* User Menu Dropdown */}
+                {showUserMenu && (
+                  <div
+                    ref={menuRef}
+                    className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+                    role="menu"
+                  >
+                    <button
+                      onClick={handleUpdatePassword}
+                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      role="menuitem"
+                    >
+                      <Lock className="h-4 w-4 mr-3" />
+                      Update Password
+                    </button>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      role="menuitem"
+                    >
+                      <LogOut className="h-4 w-4 mr-3" />
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
-              
-              <button
-                onClick={logout}
-                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign out</span>
-              </button>
             </div>
           </div>
         </div>
@@ -39,6 +150,11 @@ export const Layout: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <VocabTree />
       </main>
+
+      {/* Update Password Modal */}
+      {showUpdatePassword && (
+        <UpdatePassword onClose={() => setShowUpdatePassword(false)} />
+      )}
     </div>
   );
 };

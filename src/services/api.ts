@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import {
   AuthSignInRequest,
   AuthToken,
+  AuthUpdatePasswordRequest,
   Card,
   CardCreate,
   CardUpdate,
@@ -55,6 +56,10 @@ class ApiClient {
   async signIn(credentials: AuthSignInRequest): Promise<AuthToken> {
     const response: AxiosResponse<AuthToken> = await this.client.post('/auth/signin', credentials);
     return response.data;
+  }
+
+  async updatePassword(passwordData: AuthUpdatePasswordRequest): Promise<void> {
+    await this.client.put('/auth/update-password', passwordData);
   }
 
   // Cards

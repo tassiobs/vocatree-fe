@@ -22,6 +22,11 @@ export interface AuthToken {
   expires_in: number;
 }
 
+export interface AuthUpdatePasswordRequest {
+  old_password: string;
+  new_password: string;
+}
+
 export interface Card {
   id: number;
   name: string;
