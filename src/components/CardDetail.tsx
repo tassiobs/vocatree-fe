@@ -18,6 +18,11 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Expose refresh method to allow external updates
+  const refreshCard = React.useCallback(() => {
+    loadCard();
+  }, [cardId]);
+
   // Form state
   const [name, setName] = useState('');
   const [examplePhrases, setExamplePhrases] = useState<string[]>([]);

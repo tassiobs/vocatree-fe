@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { TreeNodeProps } from '../types';
 import { AddItemInput } from './AddItemInput';
 import { CardDetail } from './CardDetail';
+import { UpdateCardAI } from './UpdateCardAI';
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAddChildAction, createMoveAction, createDuplicateAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
+import { apiClient } from '../services/api';
+import { Card } from '../types/api';
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -11,7 +14,8 @@ import {
   FileText, 
   Plus,
   GripVertical,
-  Hash
+  Hash,
+  Sparkles
 } from 'lucide-react';
 
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -28,6 +32,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [showAddInput, setShowAddInput] = useState(false);
   const [addType, setAddType] = useState<'folder' | 'card'>('card');
   const [showDetail, setShowDetail] = useState(false);
+  const [showUpdateAI, setShowUpdateAI] = useState(false);
 
   const handleRename = () => {
     if (editName.trim() && editName.trim() !== item.name) {
@@ -86,6 +91,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
       createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id))),
     ];
 
+    // Add "Update Card using AI" action only for cards (not folders)
+    if (!item.is_folder) {
+      items.push({
+        id: 'update-ai',
+        label: 'Update Card using AI',
+        icon: <Sparkles className="h-4 w-4" />,
+        onClick: () => setShowUpdateAI(true),
+      });
+    }
+
     // Add child actions for folders
     if (item.is_folder) {
       items.push(createAddChildAction(handleAddFolder, 'folder'));
@@ -104,6 +119,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     }));
 
     return items;
+  };
+
+  // Handle AI update success
+  const handleAIUpdateSuccess = async (updatedCard: Card) => {
+    setShowUpdateAI(false);
+    // Open the card detail view with updated data
+    // The CardDetail component will automatically reload the card data
+    setShowDetail(true);
   };
 
   // Calculate indentation based on level
@@ -424,6 +447,76 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           onSave={handleDetailSave}
         />
       )}
+
+      {/* Update Card AI Modal */}
+      {showUpdateAI && (
+        <UpdateCardAIWrapper
+          item={item}
+          onClose={() => setShowUpdateAI(false)}
+          onSuccess={handleAIUpdateSuccess}
+        />
+      )}
     </div>
   );
+};
+
+// Wrapper component to handle async card conversion
+const UpdateCardAIWrapper: React.FC<{
+  item: TreeNodeProps['item'];
+  onClose: () => void;
+  onSuccess: (card: Card) => void;
+}> = ({ item, onClose, onSuccess }) => {
+  const [card, setCard] = useState<Card | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const loadCard = async () => {
+      try {
+        const cardData = await apiClient.getCard(item.id);
+        setCard(cardData);
+      } catch (error) {
+        // If fetch fails, create a minimal card object from the item
+        const minimalCard: Card = {
+          id: item.id,
+          name: item.name,
+          parent_id: item.parent_id ?? null,
+          is_folder: item.is_folder,
+          category_id: item.category_id ?? null,
+          example_phrases: item.example_phrases ?? null,
+          meanings: item.meanings ?? null,
+          grammar_roles: item.grammar_roles ?? null,
+          collocations: item.collocations ?? null,
+          synonyms: item.synonyms ?? null,
+          antonyms: item.antonyms ?? null,
+          related_words: null,
+          word_forms: null,
+          videos: null,
+          use_count: item.use_count ?? 0,
+          notes: item.notes ?? null,
+          created_at: item.created_at ?? new Date().toISOString(),
+          user_created: 0,
+          children: null,
+        };
+        setCard(minimalCard);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCard();
+  }, [item]);
+
+  if (isLoading || !card) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="flex items-center justify-center">
+            <div className="text-gray-600">Loading card...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <UpdateCardAI card={card} onClose={onClose} onSuccess={onSuccess} />;
 };

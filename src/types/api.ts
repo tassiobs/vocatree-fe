@@ -80,6 +80,11 @@ export interface CardUpdate {
   notes?: string | null;
 }
 
+export interface CardAIEnrichRequest {
+  language: string;
+  prompt?: string;
+}
+
 export interface CardListResponse {
   total: number;
   limit: number;

@@ -6,6 +6,7 @@ import {
   Card,
   CardCreate,
   CardUpdate,
+  CardAIEnrichRequest,
   CardListResponse,
   Category,
   CategoryListResponse
@@ -124,6 +125,11 @@ class ApiClient {
 
   async updateCard(id: number, card: CardUpdate): Promise<Card> {
     const response: AxiosResponse<Card> = await this.client.patch(`/cards/${id}`, card);
+    return response.data;
+  }
+
+  async aiEnrichCard(id: number, data: CardAIEnrichRequest): Promise<Card> {
+    const response: AxiosResponse<Card> = await this.client.patch(`/cards/${id}/ai-enrich`, data);
     return response.data;
   }
 
