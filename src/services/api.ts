@@ -31,6 +31,16 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // Log request details for debugging
+        if (config.method?.toUpperCase() === 'POST' && config.url?.includes('/cards/')) {
+          console.log('POST /cards/ request:', {
+            url: `${this.baseURL}${config.url}`,
+            method: config.method,
+            headers: config.headers,
+            data: config.data,
+            hasToken: !!token,
+          });
+        }
         return config;
       },
       (error) => {
@@ -45,6 +55,21 @@ class ApiClient {
         if (error.response?.status === 401) {
           localStorage.removeItem('auth_token');
           window.location.href = '/login';
+        }
+        
+        // Handle CORS errors
+        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+          const corsError = new Error(
+            'CORS Error: The API server is not allowing requests from this origin. ' +
+            'Please ensure the backend CORS configuration includes: https://vocatree-fe.vercel.app'
+          );
+          corsError.name = 'CORSError';
+          console.error('CORS Error Details:', {
+            frontendOrigin: window.location.origin,
+            apiUrl: this.baseURL,
+            error: error.message
+          });
+          return Promise.reject(corsError);
         }
         
         return Promise.reject(error);
@@ -64,8 +89,23 @@ class ApiClient {
 
   // Cards
   async createCard(card: CardCreate): Promise<Card> {
-    const response: AxiosResponse<Card> = await this.client.post('/cards/', card);
-    return response.data;
+    try {
+      const response: AxiosResponse<Card> = await this.client.post('/cards/', card);
+      return response.data;
+    } catch (error: any) {
+      // Log detailed error information for debugging
+      console.error('createCard error details:', {
+        url: `${this.baseURL}/cards/`,
+        method: 'POST',
+        data: card,
+        errorCode: error.code,
+        errorMessage: error.message,
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+        requestHeaders: error.config?.headers,
+      });
+      throw error;
+    }
   }
 
   async getCards(params?: {

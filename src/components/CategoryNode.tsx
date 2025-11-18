@@ -130,7 +130,8 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
       onCategoryRefresh(category.id, parentId);
     } catch (err: any) {
       console.error('Error adding child to folder:', err);
-      alert('Failed to add item');
+      const errorMessage = err.message || err.response?.data?.detail || 'Failed to add item';
+      alert(`Failed to add item: ${errorMessage}`);
     }
   };
 
