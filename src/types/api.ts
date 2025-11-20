@@ -27,6 +27,11 @@ export interface AuthUpdatePasswordRequest {
   new_password: string;
 }
 
+export interface AuthMeResponse {
+  id: number;
+  email: string;
+}
+
 export interface Card {
   id: number;
   name: string;

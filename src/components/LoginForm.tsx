@@ -21,10 +21,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     setError(null);
 
     try {
+      console.log('LoginForm: Attempting login with email:', email);
       await login(email, password);
+      console.log('LoginForm: Login completed successfully');
       onSuccess?.();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      console.error('LoginForm: Login failed with error:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Login failed. Please try again.';
+      console.error('LoginForm: Error message:', errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -1,8 +1,9 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import {
   AuthSignInRequest,
   AuthToken,
   AuthUpdatePasswordRequest,
+  AuthMeResponse,
   Card,
   CardCreate,
   CardUpdate,
@@ -15,6 +16,16 @@ import {
 class ApiClient {
   private client: AxiosInstance;
   private baseURL: string;
+  private isRefreshing: boolean = false;
+  private failedQueue: Array<{
+    resolve: (value?: any) => void;
+    reject: (reason?: any) => void;
+  }> = [];
+  private onAuthFailure?: () => void;
+
+  setOnAuthFailure(callback: () => void) {
+    this.onAuthFailure = callback;
+  }
 
   constructor(baseURL: string = process.env.REACT_APP_API_URL || 'http://localhost:8000') {
     this.baseURL = baseURL;
@@ -23,15 +34,35 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      withCredentials: true, // REQUIRED: Send cookies with all requests (cross-origin)
+      xsrfCookieName: undefined, // Disable CSRF token handling - not needed for our use case
+      xsrfHeaderName: undefined,
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor - ensure withCredentials is always true
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        // CRITICAL: Ensure withCredentials is always set to true for cookie-based auth
+        // This is required for cross-origin cookie support
+        config.withCredentials = true;
+        
+        // Log if withCredentials somehow got disabled
+        if (!config.withCredentials) {
+          console.error('⚠️ WARNING: withCredentials was false! Forcing to true.');
         }
+        
+        // Log auth-related requests for debugging
+        if (config.url?.includes('/auth/')) {
+          console.log('🔐 Auth request:', {
+            url: `${this.baseURL}${config.url}`,
+            method: config.method?.toUpperCase(),
+            withCredentials: config.withCredentials,
+            headers: Object.keys(config.headers || {}),
+            // Note: HttpOnly cookies won't appear in document.cookie, but should be sent automatically
+            note: 'HttpOnly cookies are sent automatically if withCredentials is true',
+          });
+        }
+        
         // Log request details for debugging
         if (config.method?.toUpperCase() === 'POST' && config.url?.includes('/cards/')) {
           console.log('POST /cards/ request:', {
@@ -39,7 +70,7 @@ class ApiClient {
             method: config.method,
             headers: config.headers,
             data: config.data,
-            hasToken: !!token,
+            withCredentials: config.withCredentials,
           });
         }
         return config;
@@ -49,15 +80,71 @@ class ApiClient {
       }
     );
 
-    // Response interceptor for error handling
+    // Response interceptor for 401 handling with refresh
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('auth_token');
-          window.location.href = '/login';
+      async (error) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/');
+
+        // Handle 401 Unauthorized (but skip refresh for auth endpoints to avoid loops)
+        // Also skip if the request is to /auth/signin - let it fail normally with the error message
+        const isSignInEndpoint = originalRequest.url?.includes('/auth/signin');
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint && !isSignInEndpoint) {
+          // If we're already refreshing, queue this request
+          if (this.isRefreshing) {
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            })
+              .then(() => {
+                return this.client(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          this.isRefreshing = true;
+
+          try {
+            // Attempt to refresh the token using fetch to ensure credentials are included
+            // Use fetch directly for refresh to avoid axios interceptor loops
+            const refreshResponse = await fetch(`${this.baseURL}/auth/refresh`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (!refreshResponse.ok) {
+              throw new Error(`Refresh failed with status ${refreshResponse.status}`);
+            }
+            
+            // Process queued requests
+            this.failedQueue.forEach((prom) => prom.resolve());
+            this.failedQueue = [];
+            
+            // Retry the original request with withCredentials ensured
+            originalRequest.withCredentials = true;
+            return this.client(originalRequest);
+          } catch (refreshError) {
+            // Refresh failed - clear queue and reject
+            this.failedQueue.forEach((prom) => prom.reject(refreshError));
+            this.failedQueue = [];
+            
+            // Notify auth context about auth failure
+            if (this.onAuthFailure) {
+              this.onAuthFailure();
+            }
+            
+            return Promise.reject(refreshError);
+          } finally {
+            this.isRefreshing = false;
+          }
         }
-        
+
         // Handle CORS errors
         if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
           const corsError = new Error(
@@ -72,20 +159,141 @@ class ApiClient {
           });
           return Promise.reject(corsError);
         }
-        
+
         return Promise.reject(error);
       }
     );
   }
 
   // Authentication
-  async signIn(credentials: AuthSignInRequest): Promise<AuthToken> {
-    const response: AxiosResponse<AuthToken> = await this.client.post('/auth/signin', credentials);
-    return response.data;
+  async signIn(credentials: AuthSignInRequest): Promise<any> {
+    // Log the request for debugging
+    console.log('Signing in with credentials:', {
+      email: credentials.email,
+      passwordLength: credentials.password?.length,
+      emailTrimmed: credentials.email?.trim(),
+      passwordTrimmed: credentials.password?.trim()?.length,
+    });
+    
+    // Trim email and password to avoid whitespace issues
+    const trimmedCredentials: AuthSignInRequest = {
+      email: credentials.email.trim(),
+      password: credentials.password.trim(),
+    };
+    
+    try {
+      // Cookies are set by the backend automatically
+      console.log('Making signin request...', {
+        url: `${this.baseURL}/auth/signin`,
+        method: 'POST',
+        withCredentials: true,
+        data: {
+          email: trimmedCredentials.email,
+          passwordLength: trimmedCredentials.password.length,
+        },
+      });
+      
+      const response = await this.client.post('/auth/signin', trimmedCredentials);
+      
+      // Check for Set-Cookie headers (axios may not expose these directly)
+      const setCookieHeaders = response.headers['set-cookie'];
+      const hasSetCookieHeaders = !!setCookieHeaders && (Array.isArray(setCookieHeaders) ? setCookieHeaders.length > 0 : true);
+      
+      console.log('✅ Sign in response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasSetCookieHeaders: hasSetCookieHeaders,
+        contentType: response.headers['content-type'],
+      });
+      
+      // Check if Set-Cookie headers are present (note: axios may not expose Set-Cookie in headers)
+      // Check browser DevTools Network tab → Response Headers to verify Set-Cookie headers
+      console.log('📋 Next step: Check Network tab → /auth/signin → Response Headers → Set-Cookie');
+      console.log('📋 Then check: Next request → Request Headers → Cookie: header should contain tokens');
+      
+      // Return response data in case it contains user info
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Sign in error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          withCredentials: error.config?.withCredentials,
+          data: {
+            email: error.config?.data?.email,
+            passwordLength: error.config?.data?.password?.length,
+          },
+          headers: error.config?.headers,
+        },
+        request: {
+          responseURL: error.request?.responseURL,
+          status: error.request?.status,
+        },
+      });
+      throw error;
+    }
+  }
+
+  async refresh(): Promise<void> {
+    // Use fetch directly to ensure credentials are always included
+    const response = await fetch(`${this.baseURL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Refresh failed with status ${response.status}`);
+    }
+  }
+
+  async getMe(): Promise<AuthMeResponse> {
+    try {
+      console.log('🔍 Getting user info from /auth/me...');
+      const response: AxiosResponse<AuthMeResponse> = await this.client.get('/auth/me');
+      console.log('✅ /auth/me successful:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ /auth/me failed:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+      });
+      console.error('⚠️ Check Network tab → /auth/me request → Request Headers → Cookie: header');
+      console.error('⚠️ If Cookie: header is missing, cookies are not being sent');
+      throw error;
+    }
+  }
+
+  async debugCookies(): Promise<any> {
+    try {
+      const response: AxiosResponse<any> = await this.client.get('/auth/debug-cookies');
+      return response.data;
+    } catch (error: any) {
+      console.error('Debug cookies error:', error);
+      return { error: error.response?.data || error.message };
+    }
   }
 
   async updatePassword(passwordData: AuthUpdatePasswordRequest): Promise<void> {
     await this.client.put('/auth/update-password', passwordData);
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.client.post('/auth/logout');
+    } catch (error: any) {
+      // Even if logout fails, we should clear local state
+      console.warn('Logout endpoint failed:', error.message);
+    }
   }
 
   // Cards
@@ -209,20 +417,7 @@ class ApiClient {
     }
   }
 
-  // Utility method to set auth token
-  setAuthToken(token: string): void {
-    localStorage.setItem('auth_token', token);
-  }
-
-  // Utility method to remove auth token
-  removeAuthToken(): void {
-    localStorage.removeItem('auth_token');
-  }
-
-  // Utility method to check if user is authenticated
-  isAuthenticated(): boolean {
-    return !!localStorage.getItem('auth_token');
-  }
+  // No token storage methods needed - using HTTP-only cookies
 }
 
 export const apiClient = new ApiClient();
