@@ -35,6 +35,12 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
   const [wordForms, setWordForms] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
   const [useCount, setUseCount] = useState(0);
+  const [ipa, setIpa] = useState('');
+  const [register, setRegister] = useState('');
+  const [difficulty, setDifficulty] = useState<string>('');
+  const [etymology, setEtymology] = useState('');
+  const [masteryLevel, setMasteryLevel] = useState<string>('');
+  const [lastReviewedAt, setLastReviewedAt] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -60,6 +66,12 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
       setWordForms(cardData.word_forms || []);
       setVideos(cardData.videos || []);
       setUseCount(cardData.use_count || 0);
+      setIpa(cardData.ipa || '');
+      setRegister(cardData.register || '');
+      setDifficulty(cardData.difficulty || '');
+      setEtymology(cardData.etymology || '');
+      setMasteryLevel(cardData.mastery_level || '');
+      setLastReviewedAt(cardData.last_reviewed_at || null);
       setNotes(cardData.notes || '');
 
       // Load parent folder if exists
@@ -106,6 +118,11 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
         word_forms: wordForms.length > 0 ? wordForms : null,
         videos: videos.length > 0 ? videos : null,
         use_count: useCount,
+        ipa: ipa || null,
+        register: register || null,
+        difficulty: difficulty || null,
+        etymology: etymology || null,
+        mastery_level: masteryLevel || null,
         notes: notes || null,
       });
 
@@ -332,6 +349,114 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
               <span>5</span>
             </div>
           </div>
+
+          {/* IPA */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              IPA (International Phonetic Alphabet)
+            </label>
+            <input
+              type="text"
+              value={ipa}
+              onChange={(e) => {
+                setIpa(e.target.value);
+                markAsChanged();
+              }}
+              placeholder="e.g., /həˈləʊ/"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Register */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Register
+            </label>
+            <input
+              type="text"
+              value={register}
+              onChange={(e) => {
+                setRegister(e.target.value);
+                markAsChanged();
+              }}
+              placeholder="e.g., formal, informal, colloquial"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Difficulty */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Difficulty
+            </label>
+            <select
+              value={difficulty}
+              onChange={(e) => {
+                setDifficulty(e.target.value);
+                markAsChanged();
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select difficulty level</option>
+              <option value="A1">A1</option>
+              <option value="A2">A2</option>
+              <option value="A3">A3</option>
+              <option value="B1">B1</option>
+              <option value="B2">B2</option>
+              <option value="C1">C1</option>
+              <option value="C2">C2</option>
+            </select>
+          </div>
+
+          {/* Etymology */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Etymology
+            </label>
+            <textarea
+              value={etymology}
+              onChange={(e) => {
+                setEtymology(e.target.value);
+                markAsChanged();
+              }}
+              rows={3}
+              placeholder="Enter etymology or word origin..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Mastery Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Mastery Level
+            </label>
+            <select
+              value={masteryLevel}
+              onChange={(e) => {
+                setMasteryLevel(e.target.value);
+                markAsChanged();
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select mastery level</option>
+              <option value="New">New</option>
+              <option value="Learning">Learning</option>
+              <option value="Familiar">Familiar</option>
+              <option value="Mastered">Mastered</option>
+            </select>
+          </div>
+
+          {/* Last Reviewed At (Read-only) */}
+          {lastReviewedAt && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Last Reviewed At
+              </label>
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
+                {new Date(lastReviewedAt).toLocaleString()}
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div>

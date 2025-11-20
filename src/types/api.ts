@@ -48,6 +48,12 @@ export interface Card {
   word_forms: string[] | null;
   videos: string[] | null;
   use_count: number;
+  ipa?: string | null;
+  register?: string | null;
+  difficulty?: string | null;
+  etymology?: string | null;
+  mastery_level?: string | null;
+  last_reviewed_at?: string | null;
   notes: string | null;
   created_at: string;
   user_created: number;
@@ -82,6 +88,11 @@ export interface CardUpdate {
   word_forms?: string[] | null;
   videos?: string[] | null;
   use_count?: number | null;
+  ipa?: string | null;
+  register?: string | null;
+  difficulty?: string | null;
+  etymology?: string | null;
+  mastery_level?: string | null;
   notes?: string | null;
 }
 
