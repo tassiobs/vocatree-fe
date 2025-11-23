@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CategoryItem } from '../types';
 import { TreeNode } from './TreeNode';
 import { AddItemInput } from './AddItemInput';
+import { AICardForm } from './AICardForm';
+import { CardDetail } from './CardDetail';
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -9,9 +11,11 @@ import {
   Plus,
   Hash,
   Tag,
-  FileText
+  FileText,
+  Check,
+  X
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAddChildAction, createMoveAction, createDuplicateAction } from './DropdownMenu';
+import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
 
@@ -41,18 +45,41 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   const [showAddInput, setShowAddInput] = useState(false);
   const [addType, setAddType] = useState<'folder' | 'card'>('folder');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showAICardForm, setShowAICardForm] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+
+  // Sync editName with category.name when category changes
+  useEffect(() => {
+    if (!isEditing) {
+      setEditName(category.name);
+    }
+  }, [category.name, isEditing]);
 
   const handleRename = async () => {
-    if (editName.trim() && editName.trim() !== category.name) {
-      try {
-        await apiClient.updateCard(category.id, { name: editName.trim() });
-        onRename(category.id, editName.trim());
-      } catch (err: any) {
-        console.error('Error renaming category:', err);
-        setEditName(category.name); // Reset on error
-      }
+    if (!editName.trim()) {
+      setEditName(category.name);
+      setIsEditing(false);
+      return;
     }
-    setIsEditing(false);
+
+    if (editName.trim() === category.name) {
+      setIsEditing(false);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await apiClient.updateCard(category.id, { name: editName.trim() });
+      onRename(category.id, editName.trim());
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error('Error renaming category:', err);
+      setEditName(category.name); // Reset on error
+      alert('Failed to rename category. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -62,10 +89,26 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       handleRename();
     } else if (e.key === 'Escape') {
       handleCancelEdit();
     }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Only save on blur if the user didn't click the save/cancel buttons
+    // Check if the related target is one of our buttons
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (relatedTarget && (relatedTarget.closest('.edit-actions') || relatedTarget.closest('button'))) {
+      return; // Don't save if clicking a button
+    }
+    // Small delay to allow button clicks to register
+    setTimeout(() => {
+      if (isEditing) {
+        handleRename();
+      }
+    }, 200);
   };
 
   const handleDelete = async () => {
@@ -145,21 +188,28 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
     setShowAddInput(true);
   };
 
+  const handleAICardSuccess = (cardId: number) => {
+    setShowAICardForm(false);
+    setSelectedCardId(cardId);
+    // Refresh the category to show the new card
+    onCategoryRefresh(category.id);
+  };
+
+  const handleCardDetailClose = () => {
+    setSelectedCardId(null);
+  };
+
+  const handleCardDetailSave = () => {
+    // Refresh the category after saving
+    onCategoryRefresh(category.id);
+  };
+
   // Create dropdown menu items for category
   const getCategoryDropdownItems = (): DropdownMenuItem[] => {
     return [
       createEditAction(() => setIsEditing(true)),
+      createAICardAction(() => setShowAICardForm(true)),
       createDeleteAction(handleDelete),
-      createAddChildAction(handleAddFolder, 'folder'),
-      createAddChildAction(handleAddCard, 'card'),
-      createMoveAction(() => {
-        // TODO: Implement move functionality for categories
-        console.log('Move action clicked for category:', category.id);
-      }),
-      createDuplicateAction(() => {
-        // TODO: Implement duplicate functionality for categories
-        console.log('Duplicate action clicked for category:', category.id);
-      }),
     ];
   };
 
@@ -195,15 +245,36 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
           {/* Category Name and Stats */}
           <div className="flex-1 min-w-0">
             {isEditing ? (
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onBlur={handleRename}
-                onKeyDown={handleKeyDown}
-                className="w-full border-0 outline-none text-xl font-bold bg-transparent text-purple-900"
-                autoFocus
-              />
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
+                  className="flex-1 border border-purple-300 rounded-md px-3 py-1 text-xl font-bold bg-white text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  autoFocus
+                  disabled={isSaving}
+                />
+                <div className="edit-actions flex items-center space-x-1">
+                  <button
+                    onClick={handleRename}
+                    disabled={isSaving || !editName.trim()}
+                    className="p-1.5 hover:bg-green-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Save"
+                  >
+                    <Check className="h-5 w-5 text-green-600" />
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="p-1.5 hover:bg-red-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Cancel"
+                  >
+                    <X className="h-5 w-5 text-red-600" />
+                  </button>
+                </div>
+              </div>
             ) : (
               <div>
                 <h3 className="text-xl font-bold text-purple-900 truncate">
@@ -337,6 +408,25 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* AI Card Form Modal */}
+      {showAICardForm && (
+        <AICardForm
+          categoryId={category.id}
+          categoryName={category.name}
+          onClose={() => setShowAICardForm(false)}
+          onSuccess={handleAICardSuccess}
+        />
+      )}
+
+      {/* Card Detail Modal */}
+      {selectedCardId !== null && (
+        <CardDetail
+          cardId={selectedCardId}
+          onClose={handleCardDetailClose}
+          onSave={handleCardDetailSave}
+        />
       )}
     </div>
   );

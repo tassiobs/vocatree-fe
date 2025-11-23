@@ -94,6 +94,7 @@ export interface CardUpdate {
   etymology?: string | null;
   mastery_level?: string | null;
   notes?: string | null;
+  last_reviewed_at?: string | null;
 }
 
 export interface CardAIEnrichRequest {

@@ -3,7 +3,9 @@ import { TreeNodeProps } from '../types';
 import { AddItemInput } from './AddItemInput';
 import { CardDetail } from './CardDetail';
 import { UpdateCardAI } from './UpdateCardAI';
-import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAddChildAction, createMoveAction, createDuplicateAction } from './DropdownMenu';
+import { AICardForm } from './AICardForm';
+import { PracticeCard } from './PracticeCard';
+import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeCardAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
 import { Card } from '../types/api';
@@ -33,6 +35,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [addType, setAddType] = useState<'folder' | 'card'>('card');
   const [showDetail, setShowDetail] = useState(false);
   const [showUpdateAI, setShowUpdateAI] = useState(false);
+  const [showAICardForm, setShowAICardForm] = useState(false);
+  const [showPracticeCard, setShowPracticeCard] = useState(false);
+  const [newCardId, setNewCardId] = useState<number | null>(null);
 
   const handleRename = () => {
     if (editName.trim() && editName.trim() !== item.name) {
@@ -84,6 +89,23 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     window.location.reload();
   };
 
+  const handleAICardSuccess = (cardId: number) => {
+    setShowAICardForm(false);
+    // Open the card detail view immediately to show the created card data
+    setNewCardId(cardId);
+  };
+
+  const handleNewCardDetailClose = () => {
+    setNewCardId(null);
+    // Refresh the tree after closing to show the new card in the tree
+    window.location.reload();
+  };
+
+  const handleNewCardDetailSave = () => {
+    // Refresh the parent tree to show updated data
+    window.location.reload();
+  };
+
   // Create dropdown menu items
   const getDropdownItems = (): DropdownMenuItem[] => {
     const items: DropdownMenuItem[] = [
@@ -91,7 +113,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
       createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id))),
     ];
 
-    // Add "Update Card using AI" action only for cards (not folders)
+    // Add "Update Card using AI" and "Practice card" actions only for cards (not folders)
     if (!item.is_folder) {
       items.push({
         id: 'update-ai',
@@ -99,24 +121,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         icon: <Sparkles className="h-4 w-4" />,
         onClick: () => setShowUpdateAI(true),
       });
+      items.push(createPracticeCardAction(() => setShowPracticeCard(true)));
     }
 
-    // Add child actions for folders
+    // Add "Add a card using AI" action for folders
     if (item.is_folder) {
-      items.push(createAddChildAction(handleAddFolder, 'folder'));
-      items.push(createAddChildAction(handleAddCard, 'card'));
+      items.push(createAICardAction(() => setShowAICardForm(true)));
     }
-
-    // Add move and duplicate actions (placeholders for now)
-    items.push(createMoveAction(() => {
-      // TODO: Implement move functionality
-      console.log('Move action clicked for item:', item.id);
-    }));
-
-    items.push(createDuplicateAction(() => {
-      // TODO: Implement duplicate functionality
-      console.log('Duplicate action clicked for item:', item.id);
-    }));
 
     return items;
   };
@@ -454,6 +465,33 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           item={item}
           onClose={() => setShowUpdateAI(false)}
           onSuccess={handleAIUpdateSuccess}
+        />
+      )}
+
+      {/* AI Card Form Modal */}
+      {showAICardForm && item.is_folder && (
+        <AICardForm
+          parentId={item.id}
+          parentName={item.name}
+          onClose={() => setShowAICardForm(false)}
+          onSuccess={handleAICardSuccess}
+        />
+      )}
+
+      {/* Card Detail Modal for newly created AI card */}
+      {newCardId !== null && (
+        <CardDetail
+          cardId={newCardId}
+          onClose={handleNewCardDetailClose}
+          onSave={handleNewCardDetailSave}
+        />
+      )}
+
+      {/* Practice Card Modal */}
+      {showPracticeCard && !item.is_folder && (
+        <PracticeCard
+          cardId={item.id}
+          onClose={() => setShowPracticeCard(false)}
         />
       )}
     </div>

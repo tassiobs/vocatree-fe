@@ -7,7 +7,9 @@ import {
   Move, 
   Copy,
   Folder,
-  FileText
+  FileText,
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
 
 export interface DropdownMenuItem {
@@ -221,4 +223,18 @@ export const createDuplicateAction = (onDuplicate: () => void): DropdownMenuItem
   label: 'Duplicate',
   icon: <Copy className="h-4 w-4" />,
   onClick: onDuplicate,
+});
+
+export const createAICardAction = (onCreateAICard: () => void): DropdownMenuItem => ({
+  id: 'ai-card',
+  label: 'Add a card using AI',
+  icon: <Sparkles className="h-4 w-4" />,
+  onClick: onCreateAICard,
+});
+
+export const createPracticeCardAction = (onPractice: () => void): DropdownMenuItem => ({
+  id: 'practice-card',
+  label: 'Practice card',
+  icon: <BookOpen className="h-4 w-4" />,
+  onClick: onPractice,
 });

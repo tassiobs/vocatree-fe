@@ -97,10 +97,17 @@ export const VocabTree: React.FC = () => {
     try {
       await apiClient.updateCard(id, { name: newName });
       setCategories(prevCategories => 
-        prevCategories.map(category => ({
-          ...category,
-          children: updateTreeItem(category.children, id, { name: newName })
-        }))
+        prevCategories.map(category => {
+          // Check if this is a category rename
+          if (category.id === id) {
+            return { ...category, name: newName };
+          }
+          // Otherwise, update children
+          return {
+            ...category,
+            children: updateTreeItem(category.children, id, { name: newName })
+          };
+        })
       );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to rename item');

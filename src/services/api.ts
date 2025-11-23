@@ -341,6 +341,17 @@ class ApiClient {
     return response.data;
   }
 
+  async createAICard(data: {
+    name: string;
+    language: string;
+    prompt?: string;
+    category_id?: number;
+    parent_id?: number;
+  }): Promise<Card> {
+    const response: AxiosResponse<Card> = await this.client.post('/cards/ai-card', data);
+    return response.data;
+  }
+
   async deleteCard(id: number): Promise<void> {
     const callId = Math.random().toString(36).substr(2, 9);
     console.log(`[${callId}] API: DELETE /cards/${id}`);
