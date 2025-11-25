@@ -28,7 +28,19 @@ class ApiClient {
   }
 
   constructor(baseURL: string = process.env.REACT_APP_API_URL || 'https://web-production-89a2.up.railway.app/') {
+    const sanitizedEnv = process.env.REACT_APP_API_URL?.trim();
+    const deprecatedHosts = ['https://vocatree-production-17ae.up.railway.app', 'https://vocatree-production-17ae.up.railway.app/'];
+    if (sanitizedEnv && deprecatedHosts.includes(sanitizedEnv)) {
+      console.warn('Detected deprecated REACT_APP_API_URL value, overriding to new production host.');
+      baseURL = 'https://web-production-89a2.up.railway.app/';
+    }
     this.baseURL = baseURL;
+    if (typeof window !== 'undefined') {
+      console.log('ApiClient baseURL resolved:', {
+        envValue: process.env.REACT_APP_API_URL,
+        finalBaseURL: this.baseURL,
+      });
+    }
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
@@ -145,19 +157,38 @@ class ApiClient {
           }
         }
 
-        // Handle CORS errors
+        // Handle network vs CORS errors so offline issues don't show generic CORS message
         if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-          const corsError = new Error(
-            'CORS Error: The API server is not allowing requests from this origin. ' +
-            'Please ensure the backend CORS configuration includes: https://vocatree-fe.vercel.app'
-          );
-          corsError.name = 'CORSError';
-          console.error('CORS Error Details:', {
-            frontendOrigin: window.location.origin,
-            apiUrl: this.baseURL,
-            error: error.message
-          });
-          return Promise.reject(corsError);
+          const isBrowser = typeof window !== 'undefined';
+          const isOffline = isBrowser && typeof navigator !== 'undefined' && navigator.onLine === false;
+          const looksLikeCors =
+            !isOffline &&
+            !error.response &&
+            error.request &&
+            (error.request.status === 0 || error.request.readyState === 4);
+
+          if (isOffline) {
+            const offlineError = new Error(
+              'Network Error: Unable to reach the API. Please check your internet connection or whether the server is down.'
+            );
+            offlineError.name = 'NetworkOfflineError';
+            return Promise.reject(offlineError);
+          }
+
+          if (looksLikeCors) {
+            const frontendOrigin = isBrowser ? window.location.origin : 'unknown';
+            const corsError = new Error(
+              'CORS Error: The API server is not allowing requests from this origin. ' +
+              `Please ensure the backend CORS configuration includes: ${frontendOrigin}`
+            );
+            corsError.name = 'CORSError';
+            console.error('CORS Error Details:', {
+              frontendOrigin,
+              apiUrl: this.baseURL,
+              error: error.message
+            });
+            return Promise.reject(corsError);
+          }
         }
 
         return Promise.reject(error);
