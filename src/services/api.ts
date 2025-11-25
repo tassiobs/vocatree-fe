@@ -27,7 +27,7 @@ class ApiClient {
     this.onAuthFailure = callback;
   }
 
-  constructor(baseURL: string = process.env.REACT_APP_API_URL || 'http://localhost:8000') {
+  constructor(baseURL: string = process.env.REACT_APP_API_URL || 'https://web-production-89a2.up.railway.app/') {
     this.baseURL = baseURL;
     this.client = axios.create({
       baseURL: this.baseURL,
