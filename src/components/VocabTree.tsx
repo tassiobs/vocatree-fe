@@ -95,7 +95,17 @@ export const VocabTree: React.FC = () => {
 
   const handleRename = useCallback(async (id: number, newName: string) => {
     try {
-      await apiClient.updateCard(id, { name: newName });
+      // Check if this is a category rename
+      // Note: CategoryNode already makes the API call for categories, so we only update UI
+      // For non-categories (cards/folders), we need to make the API call
+      const isCategory = categories.some(cat => cat.id === id);
+      
+      if (!isCategory) {
+        // For non-categories, make the API call
+        await apiClient.updateCard(id, { name: newName });
+      }
+      
+      // Update UI state for both categories and non-categories
       setCategories(prevCategories => 
         prevCategories.map(category => {
           // Check if this is a category rename
@@ -113,7 +123,7 @@ export const VocabTree: React.FC = () => {
       setError(err.response?.data?.detail || 'Failed to rename item');
       console.error('Error renaming item:', err);
     }
-  }, []);
+  }, [categories]);
 
   const handleDelete = useCallback((id: number) => {
     // This function is called after the API delete has already been handled by handleConditionalDelete

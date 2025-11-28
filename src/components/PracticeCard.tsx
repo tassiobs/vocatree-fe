@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, Plus, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Eye, Plus, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { apiClient } from '../services/api';
-import { Card } from '../types/api';
+import { Card, EvaluateMeaningResponse, EvaluateExamplePhraseResponse } from '../types/api';
 
 interface PracticeCardProps {
   cardId: number;
@@ -69,6 +69,14 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   const [newAntonymInput, setNewAntonymInput] = useState('');
   const [newRelatedWordInput, setNewRelatedWordInput] = useState('');
   const [newWordFormInput, setNewWordFormInput] = useState('');
+
+  // AI feedback state for meaning step
+  const [isLoadingAIFeedback, setIsLoadingAIFeedback] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState<EvaluateMeaningResponse | null>(null);
+
+  // AI feedback state for example phrase step
+  const [isLoadingAIExampleFeedback, setIsLoadingAIExampleFeedback] = useState(false);
+  const [aiExampleFeedback, setAiExampleFeedback] = useState<EvaluateExamplePhraseResponse | null>(null);
 
   useEffect(() => {
     loadCard();
@@ -175,6 +183,57 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
     });
   };
 
+  const handleGetAIFeedback = async () => {
+    if (!card || !newMeaningInput.trim()) {
+      return;
+    }
+
+    try {
+      setIsLoadingAIFeedback(true);
+      setAiFeedback(null);
+      setError(null);
+
+      const response = await apiClient.evaluateMeaning({
+        word: card.name,
+        user_meaning: newMeaningInput.trim(),
+        language: 'English',
+      });
+
+      setAiFeedback(response);
+    } catch (err: any) {
+      console.error('Error getting AI feedback:', err);
+      setError(err.response?.data?.detail || 'Failed to get AI feedback. Please try again.');
+    } finally {
+      setIsLoadingAIFeedback(false);
+    }
+  };
+
+  const handleGetAIExampleFeedback = async () => {
+    if (!card || !newExamplePhraseInput.trim()) {
+      return;
+    }
+
+    try {
+      setIsLoadingAIExampleFeedback(true);
+      setAiExampleFeedback(null);
+      setError(null);
+
+      const response = await apiClient.evaluateExamplePhrase({
+        word: card.name,
+        example_phrase: newExamplePhraseInput.trim(),
+        language: 'English',
+      });
+
+      console.log('AI Example Feedback Response:', response);
+      setAiExampleFeedback(response);
+    } catch (err: any) {
+      console.error('Error getting AI example feedback:', err);
+      setError(err.response?.data?.detail || 'Failed to get AI feedback. Please try again.');
+    } finally {
+      setIsLoadingAIExampleFeedback(false);
+    }
+  };
+
   const getStepNewEntries = (step: WizardStep): boolean => {
     switch (step) {
       case 1:
@@ -243,12 +302,18 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   const handleNext = () => {
     if (currentStep < 4) {
       setCurrentStep((prev) => (prev + 1) as WizardStep);
+      // Clear AI feedback when moving to next step
+      setAiFeedback(null);
+      setAiExampleFeedback(null);
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep((prev) => (prev - 1) as WizardStep);
+      // Clear AI feedback when moving to previous step
+      setAiFeedback(null);
+      setAiExampleFeedback(null);
     }
   };
 
@@ -367,27 +432,269 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
       case 1:
         return (
           <div className="space-y-3">
-            {renderField(
-              'Meaning',
-              meanings,
-              setMeanings,
-              newMeaningInput,
-              setNewMeaningInput,
-              'Add a meaning...'
-            )}
+            {/* Meaning Field with AI Feedback */}
+            <div className="border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Meaning</label>
+                {!meanings.isRevealed && (
+                  <button
+                    onClick={() => handleReveal(setMeanings, meanings)}
+                    className="flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>Reveal</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {/* Existing values - only shown when revealed */}
+                {meanings.isRevealed && meanings.existingValues.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Existing entries:</p>
+                    <div className="space-y-1">
+                      {meanings.existingValues.map((value, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-50 p-2 rounded border border-gray-200 text-sm text-gray-700"
+                        >
+                          {value}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New values added during practice - always shown if any exist */}
+                {meanings.newValues.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Your new entries:</p>
+                    <div className="space-y-1">
+                      {meanings.newValues.map((value, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2 bg-blue-50 p-2 rounded border border-blue-200"
+                        >
+                          <span className="flex-1 text-sm text-gray-900">{value}</span>
+                          <button
+                            onClick={() => handleRemoveNewValue(setMeanings, meanings, index)}
+                            className="p-1 hover:bg-red-100 rounded text-red-600 transition-colors"
+                            title="Remove"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Input for new entry - always visible */}
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={newMeaningInput}
+                      onChange={(e) => setNewMeaningInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewValue(setMeanings, meanings, newMeaningInput, setNewMeaningInput);
+                        }
+                      }}
+                      placeholder="Add a meaning..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm min-w-0"
+                      disabled={isSaving}
+                    />
+                    <button
+                      onClick={() => handleAddNewValue(setMeanings, meanings, newMeaningInput, setNewMeaningInput)}
+                      disabled={!newMeaningInput.trim() || isSaving}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:flex-shrink-0"
+                      title="Add entry"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="text-sm">Add</span>
+                    </button>
+                  </div>
+
+                  {/* AI Feedback Button */}
+                  {newMeaningInput.trim() && (
+                    <button
+                      onClick={handleGetAIFeedback}
+                      disabled={isLoadingAIFeedback || isSaving}
+                      className="w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-md hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all text-sm"
+                    >
+                      {isLoadingAIFeedback ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Getting AI Feedback...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          <span>Get AI Feedback</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* AI Feedback Display */}
+                  {aiFeedback && (
+                    <div className="mt-3 space-y-3 p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+                      <div>
+                        <h4 className="text-sm font-semibold text-purple-900 mb-2 flex items-center space-x-1">
+                          <Sparkles className="h-4 w-4 flex-shrink-0" />
+                          <span>AI Feedback</span>
+                        </h4>
+                        <div className="text-sm text-gray-700 bg-white p-3 rounded border border-purple-100 break-words whitespace-pre-wrap">
+                          {aiFeedback.evaluation}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-indigo-900 mb-2">Refined Meaning</h4>
+                        <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
+                          {aiFeedback.refined_meaning}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         );
       case 2:
         return (
           <div className="space-y-3">
-            {renderField(
-              'Example Phrases',
-              examplePhrases,
-              setExamplePhrases,
-              newExamplePhraseInput,
-              setNewExamplePhraseInput,
-              'Add an example phrase...'
-            )}
+            {/* Example Phrase Field with AI Feedback */}
+            <div className="border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Example Phrases</label>
+                {!examplePhrases.isRevealed && (
+                  <button
+                    onClick={() => handleReveal(setExamplePhrases, examplePhrases)}
+                    className="flex items-center space-x-1 px-3 py-1.5 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>Reveal</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {/* Existing values - only shown when revealed */}
+                {examplePhrases.isRevealed && examplePhrases.existingValues.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Existing entries:</p>
+                    <div className="space-y-1">
+                      {examplePhrases.existingValues.map((value, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-50 p-2 rounded border border-gray-200 text-sm text-gray-700 break-words"
+                        >
+                          {value}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New values added during practice - always shown if any exist */}
+                {examplePhrases.newValues.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Your new entries:</p>
+                    <div className="space-y-1">
+                      {examplePhrases.newValues.map((value, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2 bg-blue-50 p-2 rounded border border-blue-200"
+                        >
+                          <span className="flex-1 text-sm text-gray-900 break-words">{value}</span>
+                          <button
+                            onClick={() => handleRemoveNewValue(setExamplePhrases, examplePhrases, index)}
+                            className="p-1 hover:bg-red-100 rounded text-red-600 transition-colors flex-shrink-0"
+                            title="Remove"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Input for new entry - always visible */}
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={newExamplePhraseInput}
+                      onChange={(e) => setNewExamplePhraseInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewValue(setExamplePhrases, examplePhrases, newExamplePhraseInput, setNewExamplePhraseInput);
+                        }
+                      }}
+                      placeholder="Add an example phrase..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm min-w-0"
+                      disabled={isSaving}
+                    />
+                    <button
+                      onClick={() => handleAddNewValue(setExamplePhrases, examplePhrases, newExamplePhraseInput, setNewExamplePhraseInput)}
+                      disabled={!newExamplePhraseInput.trim() || isSaving}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1 sm:flex-shrink-0"
+                      title="Add entry"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="text-sm">Add</span>
+                    </button>
+                  </div>
+
+                  {/* AI Feedback Button */}
+                  {newExamplePhraseInput.trim() && (
+                    <button
+                      onClick={handleGetAIExampleFeedback}
+                      disabled={isLoadingAIExampleFeedback || isSaving}
+                      className="w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-md hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all text-sm"
+                    >
+                      {isLoadingAIExampleFeedback ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Getting AI Feedback...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          <span>Get AI Feedback</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* AI Feedback Display */}
+                  {aiExampleFeedback && (
+                    <div className="mt-3 space-y-3 p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+                      <div>
+                        <h4 className="text-sm font-semibold text-purple-900 mb-2 flex items-center space-x-1">
+                          <Sparkles className="h-4 w-4 flex-shrink-0" />
+                          <span>AI Feedback</span>
+                        </h4>
+                        <div className="text-sm text-gray-700 bg-white p-3 rounded border border-purple-100 break-words whitespace-pre-wrap">
+                          {aiExampleFeedback.feedback || 'No evaluation provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-indigo-900 mb-2">Refined Phrase</h4>
+                        <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
+                          {aiExampleFeedback.refined_phrase || 'No refined phrase provided'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         );
       case 3:

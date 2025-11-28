@@ -138,5 +138,33 @@ export interface CategoryListResponse {
   items: Category[];
 }
 
+export interface CategoryUpdate {
+  name?: string;
+}
+
+export interface EvaluateMeaningRequest {
+  word: string;
+  user_meaning: string;
+  language: string;
+  prompt?: string;
+}
+
+export interface EvaluateMeaningResponse {
+  evaluation: string;
+  refined_meaning: string;
+}
+
+export interface EvaluateExamplePhraseRequest {
+  word: string;
+  example_phrase: string;
+  language: string;
+  prompt?: string;
+}
+
+export interface EvaluateExamplePhraseResponse {
+  feedback: string;
+  refined_phrase: string;
+}
+
 // Note: ApiResponse and ApiError types are defined here for future use
 // but are not currently used in the implementation

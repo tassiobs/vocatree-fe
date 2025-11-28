@@ -10,7 +10,12 @@ import {
   CardAIEnrichRequest,
   CardListResponse,
   Category,
-  CategoryListResponse
+  CategoryListResponse,
+  CategoryUpdate,
+  EvaluateMeaningRequest,
+  EvaluateMeaningResponse,
+  EvaluateExamplePhraseRequest,
+  EvaluateExamplePhraseResponse
 } from '../types/api';
 
 class ApiClient {
@@ -439,6 +444,11 @@ class ApiClient {
     return response.data;
   }
 
+  async updateCategory(id: number, category: CategoryUpdate): Promise<Category> {
+    const response: AxiosResponse<Category> = await this.client.patch(`/categories/${id}`, category);
+    return response.data;
+  }
+
   async generateAITree(data: {
     language: string;
     category_name: string;
@@ -457,6 +467,16 @@ class ApiClient {
       console.error(`API: Failed to bulk delete category ${id}:`, error.response?.data || error.message);
       throw error;
     }
+  }
+
+  async evaluateMeaning(data: EvaluateMeaningRequest): Promise<EvaluateMeaningResponse> {
+    const response: AxiosResponse<EvaluateMeaningResponse> = await this.client.post('/cards/evaluate-meaning', data);
+    return response.data;
+  }
+
+  async evaluateExamplePhrase(data: EvaluateExamplePhraseRequest): Promise<EvaluateExamplePhraseResponse> {
+    const response: AxiosResponse<EvaluateExamplePhraseResponse> = await this.client.post('/cards/evaluate-example-phrase', data);
+    return response.data;
   }
 
   // No token storage methods needed - using HTTP-only cookies

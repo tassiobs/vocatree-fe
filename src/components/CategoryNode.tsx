@@ -70,7 +70,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
 
     try {
       setIsSaving(true);
-      await apiClient.updateCard(category.id, { name: editName.trim() });
+      await apiClient.updateCategory(category.id, { name: editName.trim() });
       onRename(category.id, editName.trim());
       setIsEditing(false);
     } catch (err: any) {
