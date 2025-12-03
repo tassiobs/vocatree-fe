@@ -5,6 +5,7 @@ import { CardDetail } from './CardDetail';
 import { UpdateCardAI } from './UpdateCardAI';
 import { AICardForm } from './AICardForm';
 import { PracticeCard } from './PracticeCard';
+import { FolderView } from './FolderView';
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeCardAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
@@ -38,6 +39,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [showAICardForm, setShowAICardForm] = useState(false);
   const [showPracticeCard, setShowPracticeCard] = useState(false);
   const [newCardId, setNewCardId] = useState<number | null>(null);
+  const [showFolderView, setShowFolderView] = useState(false);
 
   const handleRename = () => {
     if (editName.trim() && editName.trim() !== item.name) {
@@ -77,6 +79,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const handleCardClick = () => {
     if (!isEditing) {
       setShowDetail(true);
+    }
+  };
+
+  const handleFolderClick = () => {
+    if (!isEditing && item.is_folder) {
+      setShowFolderView(true);
     }
   };
 
@@ -220,7 +228,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               />
             ) : (
               <button
-                onClick={isCard ? handleCardClick : undefined}
+                onClick={isCard ? handleCardClick : handleFolderClick}
                 className={`truncate text-left w-full transition-colors ${
                   isTopLevelFolder 
                     ? 'text-lg font-semibold text-gray-900 hover:text-blue-700' 
@@ -330,7 +338,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                   />
                 ) : (
                   <button
-                    onClick={isCard ? handleCardClick : undefined}
+                    onClick={isCard ? handleCardClick : handleFolderClick}
                     className={`truncate text-left w-full transition-colors ${
                       isTopLevelFolder 
                         ? 'text-lg font-semibold text-gray-900 hover:text-blue-700' 
@@ -492,6 +500,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         <PracticeCard
           cardId={item.id}
           onClose={() => setShowPracticeCard(false)}
+        />
+      )}
+
+      {/* Folder View Modal */}
+      {showFolderView && item.is_folder && (
+        <FolderView
+          folder={item}
+          onClose={() => setShowFolderView(false)}
+          onRename={onRename}
+          onDelete={onDelete}
+          onMove={onMove}
         />
       )}
     </div>

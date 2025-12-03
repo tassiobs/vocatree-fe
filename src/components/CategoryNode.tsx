@@ -4,6 +4,7 @@ import { TreeNode } from './TreeNode';
 import { AddItemInput } from './AddItemInput';
 import { AICardForm } from './AICardForm';
 import { CardDetail } from './CardDetail';
+import { CategoryView } from './CategoryView';
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -48,6 +49,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showAICardForm, setShowAICardForm] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [showCategoryView, setShowCategoryView] = useState(false);
 
   // Sync editName with category.name when category changes
   useEffect(() => {
@@ -225,7 +227,10 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
         <div className="flex items-center flex-1 min-w-0">
           {/* Expand/collapse button */}
           <button
-            onClick={() => onToggle(category.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(category.id);
+            }}
             className="mr-4 p-2 hover:bg-purple-100 rounded-lg transition-colors"
           >
             {category.isExpanded ? (
@@ -243,7 +248,14 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
           </div>
 
           {/* Category Name and Stats */}
-          <div className="flex-1 min-w-0">
+          <div 
+            className="flex-1 min-w-0 cursor-pointer" 
+            onClick={(e) => {
+              if (!isEditing && (e.target as HTMLElement).closest('button') === null) {
+                setShowCategoryView(true);
+              }
+            }}
+          >
             {isEditing ? (
               <div className="flex items-center space-x-2">
                 <input
@@ -426,6 +438,18 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
           cardId={selectedCardId}
           onClose={handleCardDetailClose}
           onSave={handleCardDetailSave}
+        />
+      )}
+
+      {/* Category View Modal */}
+      {showCategoryView && (
+        <CategoryView
+          category={category}
+          onClose={() => setShowCategoryView(false)}
+          onRename={onRename}
+          onDelete={onDelete}
+          onMove={onMove}
+          onCategoryRefresh={onCategoryRefresh}
         />
       )}
     </div>

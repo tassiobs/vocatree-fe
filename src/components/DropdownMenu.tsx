@@ -108,6 +108,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [isOpen]);
 
+
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!disabled) {
