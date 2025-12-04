@@ -26,9 +26,10 @@ interface CategoryNodeProps {
   onRename: (id: number, newName: string) => void;
   onDelete: (id: number) => void;
   onAddChild: (parentId: number, type: 'folder' | 'card', name: string) => void;
-  onMove: (itemId: number, newParentId: number | null) => void;
+  onMove: (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => Promise<void>;
   onCategoryUpdate: () => void;
   onCategoryRefresh: (categoryId: number, expandFolderId?: number) => void;
+  categories?: CategoryItem[];
 }
 
 export const CategoryNode: React.FC<CategoryNodeProps> = ({
@@ -40,6 +41,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   onMove,
   onCategoryUpdate,
   onCategoryRefresh,
+  categories = [],
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(category.name);
@@ -50,6 +52,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   const [showAICardForm, setShowAICardForm] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [showCategoryView, setShowCategoryView] = useState(false);
+  const [dragOverCategory, setDragOverCategory] = useState(false);
 
   // Sync editName with category.name when category changes
   useEffect(() => {
@@ -206,6 +209,36 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
     onCategoryRefresh(category.id);
   };
 
+  // Drag and drop handlers for category
+  const handleCategoryDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCategory(true);
+  };
+
+  const handleCategoryDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverCategory(false);
+  };
+
+  const handleCategoryDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverCategory(false);
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      const draggedItemId = dragData.id;
+      
+      // Move to this category
+      await onMove(draggedItemId, { category_id: category.id, parent_id: null });
+    } catch (err: any) {
+      console.error('Error handling category drop:', err);
+      alert(err.response?.data?.detail || 'Failed to move item');
+    }
+  };
+
   // Create dropdown menu items for category
   const getCategoryDropdownItems = (): DropdownMenuItem[] => {
     return [
@@ -223,7 +256,14 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   return (
     <div className="border border-gray-200 rounded-xl mb-6 bg-white shadow-sm hover:shadow-md transition-shadow">
       {/* Category Header */}
-      <div className="group flex items-center py-4 px-5 hover:bg-purple-50 rounded-t-xl border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50">
+      <div 
+        className={`group flex items-center py-4 px-5 hover:bg-purple-50 rounded-t-xl border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50 ${
+          dragOverCategory ? 'bg-green-100 border-green-400 border-2' : ''
+        }`}
+        onDragOver={handleCategoryDragOver}
+        onDragLeave={handleCategoryDragLeave}
+        onDrop={handleCategoryDrop}
+      >
         <div className="flex items-center flex-1 min-w-0">
           {/* Expand/collapse button */}
           <button
@@ -391,6 +431,8 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
                 onAddChild={handleAddChildToFolder}
                 onMove={onMove}
                 level={0}
+                categoryId={category.id}
+                categories={categories}
               />
             ))}
           </div>
@@ -450,6 +492,7 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
           onDelete={onDelete}
           onMove={onMove}
           onCategoryRefresh={onCategoryRefresh}
+          categories={categories}
         />
       )}
     </div>

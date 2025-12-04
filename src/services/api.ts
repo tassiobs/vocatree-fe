@@ -412,8 +412,8 @@ class ApiClient {
     }
   }
 
-  async moveCard(id: number, newParentId: number | null): Promise<void> {
-    await this.client.patch(`/cards/${id}/move`, { new_parent_id: newParentId });
+  async moveCard(id: number, data: { parent_id?: number | null; category_id?: number | null }): Promise<void> {
+    await this.client.patch(`/cards/${id}/move`, data);
   }
 
   async getCardsByParent(parentId: number, params?: {

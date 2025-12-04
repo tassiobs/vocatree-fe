@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { TreeNodeProps } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { TreeNodeProps, TreeItem, CategoryItem } from '../types';
 import { AddItemInput } from './AddItemInput';
 import { CardDetail } from './CardDetail';
 import { UpdateCardAI } from './UpdateCardAI';
 import { AICardForm } from './AICardForm';
 import { PracticeCard } from './PracticeCard';
 import { FolderView } from './FolderView';
+import { MoveToModal } from './MoveToModal';
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeCardAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
@@ -18,7 +19,8 @@ import {
   Plus,
   GripVertical,
   Hash,
-  Sparkles
+  Sparkles,
+  Move
 } from 'lucide-react';
 
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -29,6 +31,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   onAddChild,
   onMove,
   level,
+  categoryId,
+  categories = [],
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item.name);
@@ -40,6 +44,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [showPracticeCard, setShowPracticeCard] = useState(false);
   const [newCardId, setNewCardId] = useState<number | null>(null);
   const [showFolderView, setShowFolderView] = useState(false);
+  const [showMoveToModal, setShowMoveToModal] = useState(false);
+  
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [isDragTarget, setIsDragTarget] = useState(false);
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const draggedItemRef = useRef<TreeItem | null>(null);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   const handleRename = () => {
     if (editName.trim() && editName.trim() !== item.name) {
@@ -114,10 +128,173 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     window.location.reload();
   };
 
+  // Check if target folder is a subfolder (has a parent_id)
+  const isTargetSubfolder = (targetItem: TreeItem): boolean => {
+    return targetItem.parent_id !== null && targetItem.parent_id !== undefined;
+  };
+
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    if (isEditing) {
+      e.preventDefault();
+      return;
+    }
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    const dragData = {
+      id: item.id,
+      type: item.type,
+      parent_id: item.parent_id,
+      category_id: item.category_id,
+    };
+    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+    draggedItemRef.current = item;
+    // Add visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setIsDragging(false);
+    setDragOver(false);
+    draggedItemRef.current = null;
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if this is a valid drop target
+    if (item.is_folder && draggedItemRef.current) {
+      // Validate if dragged item can be moved to this folder
+      if (canMoveToTarget(draggedItemRef.current, item)) {
+        e.dataTransfer.dropEffect = 'move';
+        setDragOver(true);
+        setIsDragTarget(true);
+      } else {
+        e.dataTransfer.dropEffect = 'none';
+        setDragOver(false);
+        setIsDragTarget(false);
+      }
+    } else if (!item.is_folder) {
+      e.dataTransfer.dropEffect = 'none';
+      setDragOver(false);
+      setIsDragTarget(false);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    setIsDragTarget(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    setIsDragTarget(false);
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      
+      // Use the stored item from ref if available, otherwise construct minimal item
+      if (!draggedItemRef.current) {
+        console.error('Dragged item ref is null');
+        return;
+      }
+      
+      const draggedItem: TreeItem = draggedItemRef.current;
+      
+      if (draggedItem.id === item.id || !item.is_folder) return;
+      
+      // Validate move
+      if (!canMoveToTarget(draggedItem, item)) {
+        alert('Cannot move here. Subfolders cannot contain other folders.');
+        return;
+      }
+
+      // Move to this folder
+      await onMove(draggedItem.id, { parent_id: item.id });
+    } catch (err: any) {
+      console.error('Error handling drop:', err);
+      alert(err.response?.data?.detail || 'Failed to move item');
+    }
+  };
+
+  // Check if dragged item can be moved to target
+  const canMoveToTarget = (draggedItem: TreeItem, targetItem: TreeItem): boolean => {
+    // Can't move to itself
+    if (draggedItem.id === targetItem.id) return false;
+    
+    // Can't move to its own children (prevent circular reference)
+    const isDescendant = (parent: TreeItem, childId: number): boolean => {
+      if (parent.id === childId) return true;
+      return parent.children.some((child) => isDescendant(child, childId));
+    };
+    if (isDescendant(draggedItem, targetItem.id)) return false;
+    
+    // Folders can't be moved into subfolders
+    if (draggedItem.is_folder && targetItem.is_folder && isTargetSubfolder(targetItem)) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Mobile long-press handler
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isEditing || !isMobile) return;
+    
+    longPressTimer.current = setTimeout(() => {
+      setIsDragging(true);
+      // Trigger drag on mobile
+      const touch = e.touches[0];
+      const dragEvent = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      });
+      // Note: Touch drag is limited, so we'll use Move To modal instead
+    }, 500); // 500ms long press
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setIsDragging(false);
+  };
+
+  const handleTouchMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
+
   // Create dropdown menu items
   const getDropdownItems = (): DropdownMenuItem[] => {
     const items: DropdownMenuItem[] = [
       createEditAction(() => setIsEditing(true)),
+      {
+        id: 'move',
+        label: 'Move To...',
+        icon: <Move className="h-4 w-4" />,
+        onClick: () => setShowMoveToModal(true),
+      },
       createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id))),
     ];
 
@@ -164,6 +341,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     <div className="relative">
       {/* Main item container */}
       <div 
+        ref={nodeRef}
+        draggable={!isEditing && !isMobile}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+        onTouchMove={isMobile ? handleTouchMove : undefined}
         className={`group transition-all duration-200 ${
           isTopLevelFolder 
             ? 'py-3 px-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg mb-2 hover:bg-blue-100' 
@@ -172,17 +359,30 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             : isCard
             ? 'py-1.5 px-3 ml-8 hover:bg-gray-50 rounded-md border-l border-gray-200'
             : 'py-2 px-3 hover:bg-gray-50 rounded-md'
+        } ${
+          isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-move'
+        } ${
+          dragOver && item.is_folder ? 'bg-green-100 border-green-400 border-2 ring-2 ring-green-300' : ''
         }`}
         style={{ marginLeft: `${indentPx}px` }}
       >
         {/* Desktop layout - single row */}
         <div className="hidden lg:flex items-center flex-1 min-w-0">
-          {/* Drag handle - only show for folders */}
-          {item.is_folder && (
-            <div className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-              <GripVertical className="h-3 w-3 text-gray-400" />
-            </div>
-          )}
+          {/* Drag handle - always visible for draggable items */}
+          <div 
+            className={`mr-2 transition-opacity ${
+              isMobile ? 'opacity-50' : 'opacity-0 group-hover:opacity-100'
+            } cursor-grab active:cursor-grabbing`}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              if (isMobile) {
+                handleTouchStart(e as any);
+              }
+            }}
+          >
+            <GripVertical className="h-3 w-3 text-gray-400" />
+          </div>
 
           {/* Expand/collapse button - only for items with children */}
           {hasChildren && (
@@ -286,12 +486,21 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           {/* Top row: Icon, name, and expand button */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center flex-1 min-w-0">
-              {/* Drag handle - only show for folders */}
-              {item.is_folder && (
-                <div className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-                  <GripVertical className="h-3 w-3 text-gray-400" />
-                </div>
-              )}
+              {/* Drag handle - always visible for draggable items */}
+              <div 
+                className={`mr-2 transition-opacity ${
+                  isMobile ? 'opacity-50' : 'opacity-0 group-hover:opacity-100'
+                } cursor-grab active:cursor-grabbing`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  if (isMobile) {
+                    handleTouchStart(e as any);
+                  }
+                }}
+              >
+                <GripVertical className="h-3 w-3 text-gray-400" />
+              </div>
 
               {/* Expand/collapse button - only for items with children */}
               {hasChildren && (
@@ -510,6 +719,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           onClose={() => setShowFolderView(false)}
           onRename={onRename}
           onDelete={onDelete}
+          onMove={onMove}
+          categories={categories}
+        />
+      )}
+
+      {/* Move To Modal */}
+      {showMoveToModal && categories.length > 0 && (
+        <MoveToModal
+          item={item}
+          categories={categories}
+          onClose={() => setShowMoveToModal(false)}
           onMove={onMove}
         />
       )}

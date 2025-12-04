@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CategoryItem } from '../types';
 import { CategoryNode } from './CategoryNode';
 import { AddItemInput } from './AddItemInput';
 import { AITreeGenerator } from './AITreeGenerator';
 import { apiClient } from '../services/api';
-import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem, getExpandedIds } from '../utils/treeUtils';
-import { Loader2, Sparkles, Tag } from 'lucide-react';
+import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem, getExpandedIds, moveItemAcrossCategories } from '../utils/treeUtils';
+import { Loader2, Sparkles, Tag, Check } from 'lucide-react';
 
 export const VocabTree: React.FC = () => {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -13,6 +13,13 @@ export const VocabTree: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const categoriesRef = useRef<CategoryItem[]>([]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
 
   // Load initial data
   useEffect(() => {
@@ -200,18 +207,48 @@ export const VocabTree: React.FC = () => {
     }
   };
 
-  const handleMove = useCallback(async (itemId: number, newParentId: number | null) => {
-    try {
-      await apiClient.moveCard(itemId, newParentId);
-      setCategories(prevCategories => 
-        prevCategories.map(category => ({
-          ...category,
-          children: moveTreeItem(category.children, itemId, newParentId)
-        }))
+  const handleMove = useCallback(async (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => {
+    // Store original state for rollback on error (deep clone using JSON)
+    const originalCategories = JSON.parse(JSON.stringify(categoriesRef.current));
+    
+    // Find the item name for the success message
+    let itemName = '';
+    for (const category of categoriesRef.current) {
+      const found = findTreeItem(category.children, itemId);
+      if (found) {
+        itemName = found.name;
+        break;
+      }
+    }
+    
+    // Optimistically update UI
+    setCategories(prevCategories => {
+      const updated = moveItemAcrossCategories(
+        prevCategories,
+        itemId,
+        data.parent_id ?? null,
+        data.category_id ?? null
       );
+      // Update ref with new state
+      categoriesRef.current = updated;
+      return updated;
+    });
+    
+    try {
+      await apiClient.moveCard(itemId, data);
+      // Success - UI already updated optimistically, show success message
+      setSuccessMessage(`"${itemName}" moved successfully`);
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
     } catch (err: any) {
+      // Rollback on error
+      setCategories(originalCategories);
+      categoriesRef.current = originalCategories;
       setError(err.response?.data?.detail || 'Failed to move item');
       console.error('Error moving item:', err);
+      throw err;
     }
   }, []);
 
@@ -249,7 +286,19 @@ export const VocabTree: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* Success Toast Notification */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <div className="bg-green-50 border border-green-200 rounded-lg shadow-lg px-4 py-3 flex items-center space-x-2 min-w-[250px] max-w-md">
+            <div className="flex-shrink-0">
+              <Check className="h-5 w-5 text-green-600" />
+            </div>
+            <p className="text-sm font-medium text-green-800 flex-1">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Vocabulary Tree</h1>
@@ -310,6 +359,7 @@ export const VocabTree: React.FC = () => {
               onMove={handleMove}
               onCategoryUpdate={loadCategories}
               onCategoryRefresh={handleCategoryRefresh}
+              categories={categories}
             />
           ))
         )}

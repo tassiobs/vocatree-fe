@@ -10,8 +10,9 @@ interface CategoryViewProps {
   onClose: () => void;
   onRename: (id: number, newName: string) => void;
   onDelete: (id: number) => void;
-  onMove: (itemId: number, newParentId: number | null) => void;
+  onMove: (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => Promise<void>;
   onCategoryRefresh: (categoryId: number, expandFolderId?: number) => void;
+  categories?: CategoryItem[];
 }
 
 export const CategoryView: React.FC<CategoryViewProps> = ({
@@ -21,14 +22,31 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   onDelete,
   onMove,
   onCategoryRefresh,
+  categories = [],
 }) => {
   const [categoryData, setCategoryData] = useState<CategoryItem>(category);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [allCategories, setAllCategories] = useState<CategoryItem[]>(categories);
 
   useEffect(() => {
     loadCategoryData();
+    loadAllCategories();
   }, [category.id]);
+
+  const loadAllCategories = async () => {
+    try {
+      const cats = await apiClient.getCategories();
+      setAllCategories(cats.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        isExpanded: false,
+        children: [],
+      })));
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
 
   const loadCategoryData = async () => {
     try {
@@ -149,6 +167,8 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
                   onAddChild={handleAddChildToFolder}
                   onMove={onMove}
                   level={0}
+                  categoryId={category.id}
+                  categories={allCategories}
                 />
               ))}
             </div>

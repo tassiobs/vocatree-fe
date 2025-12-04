@@ -110,7 +110,8 @@ export interface CardListResponse {
 }
 
 export interface MoveCardRequest {
-  new_parent_id: number | null;
+  parent_id?: number | null;
+  category_id?: number | null;
 }
 
 export interface ValidationError {

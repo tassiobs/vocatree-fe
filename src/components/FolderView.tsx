@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TreeItem } from '../types';
+import { TreeItem, CategoryItem } from '../types';
 import { TreeNode } from './TreeNode';
 import { X, Folder, Loader2, FileText } from 'lucide-react';
 import { apiClient } from '../services/api';
@@ -11,8 +11,9 @@ interface FolderViewProps {
   onClose: () => void;
   onRename: (id: number, newName: string) => void;
   onDelete: (id: number) => void;
-  onMove: (itemId: number, newParentId: number | null) => void;
+  onMove: (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => Promise<void>;
   onRefresh?: () => void;
+  categories?: CategoryItem[];
 }
 
 export const FolderView: React.FC<FolderViewProps> = ({
@@ -22,6 +23,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
   onDelete,
   onMove,
   onRefresh,
+  categories = [],
 }) => {
   const [folderData, setFolderData] = useState<TreeItem>(folder);
   const [isLoading, setIsLoading] = useState(false);
@@ -168,6 +170,8 @@ export const FolderView: React.FC<FolderViewProps> = ({
                   onAddChild={handleAddChildToFolder}
                   onMove={onMove}
                   level={0}
+                  categoryId={folder.category_id}
+                  categories={categories}
                 />
               ))}
             </div>

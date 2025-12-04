@@ -57,8 +57,10 @@ export interface TreeNodeProps {
   onRename: (id: number, newName: string) => void;
   onDelete: (id: number) => void;
   onAddChild: (parentId: number, type: 'folder' | 'card', name: string) => void;
-  onMove: (itemId: number, newParentId: number | null) => void;
+  onMove: (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => Promise<void>;
   level: number;
+  categoryId?: number;
+  categories?: CategoryItem[];
 }
 
 export interface AddItemInputProps {

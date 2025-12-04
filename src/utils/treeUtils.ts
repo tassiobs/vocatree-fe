@@ -212,3 +212,87 @@ export const getExpandedIds = (tree: TreeItem[]): Set<number> => {
   return expandedIds;
 };
 
+// Move item across categories or within a category
+// This function handles both moving within a category and moving between categories
+export const moveItemAcrossCategories = <T extends { id: number; children: TreeItem[] }>(
+  categories: T[],
+  itemId: number,
+  newParentId: number | null,
+  newCategoryId: number | null
+): T[] => {
+  // Find the item across all categories
+  let itemToMove: TreeItem | null = null;
+  let sourceCategoryIndex = -1;
+  
+  for (let i = 0; i < categories.length; i++) {
+    const found = findTreeItem(categories[i].children, itemId);
+    if (found) {
+      itemToMove = found;
+      sourceCategoryIndex = i;
+      break;
+    }
+  }
+  
+  if (!itemToMove || sourceCategoryIndex === -1) {
+    return categories;
+  }
+  
+  // Create a copy of the item with updated parent_id and category_id
+  const updatedItem: TreeItem = {
+    ...itemToMove,
+    parent_id: newParentId,
+    category_id: newCategoryId !== null ? newCategoryId : itemToMove.category_id,
+  };
+  
+  // Remove from source category
+  const updatedCategories: T[] = categories.map((category, index) => {
+    if (index === sourceCategoryIndex) {
+      return {
+        ...category,
+        children: removeTreeItem(category.children, itemId),
+      };
+    }
+    return category;
+  });
+  
+  // Add to target category
+  const targetCategoryIndex = newCategoryId !== null 
+    ? updatedCategories.findIndex(cat => cat.id === newCategoryId)
+    : sourceCategoryIndex; // If no category_id specified, stay in same category
+  
+  if (targetCategoryIndex === -1) {
+    // Target category not found, return original
+    return categories;
+  }
+  
+  // Add item to target location
+  if (newParentId === null) {
+    // Moving to root of target category
+    updatedCategories[targetCategoryIndex] = {
+      ...updatedCategories[targetCategoryIndex],
+      children: [...updatedCategories[targetCategoryIndex].children, updatedItem],
+    };
+  } else {
+    // Moving to a specific folder in target category
+    const targetCategory = updatedCategories[targetCategoryIndex];
+    const parentItem = findTreeItem(targetCategory.children, newParentId);
+    if (parentItem) {
+      // Update the parent's children
+      updatedCategories[targetCategoryIndex] = {
+        ...targetCategory,
+        children: updateTreeItem(targetCategory.children, newParentId, {
+          children: [...(parentItem.children || []), updatedItem],
+        }),
+      };
+    } else {
+      // Parent not found, add to root as fallback
+      updatedCategories[targetCategoryIndex] = {
+        ...targetCategory,
+        children: [...targetCategory.children, updatedItem],
+      };
+    }
+  }
+  
+  return updatedCategories;
+};
+
