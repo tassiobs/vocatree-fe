@@ -148,8 +148,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
       type: item.type,
       parent_id: item.parent_id,
       category_id: item.category_id,
+      is_folder: item.is_folder,
+      name: item.name,
     };
+    // Set data in multiple formats for better browser compatibility
     e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+    e.dataTransfer.setData('text/plain', item.id.toString()); // Fallback
     draggedItemRef.current = item;
     // Add visual feedback
     if (e.currentTarget instanceof HTMLElement) {
@@ -160,7 +164,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const handleDragEnd = (e: React.DragEvent) => {
     setIsDragging(false);
     setDragOver(false);
-    draggedItemRef.current = null;
+    // Don't clear draggedItemRef here - it's needed in handleDrop
+    // It will be cleared after the drop is processed
     if (e.currentTarget instanceof HTMLElement) {
       e.currentTarget.style.opacity = '1';
     }
@@ -170,19 +175,42 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    // Check if this is a valid drop target
-    if (item.is_folder && draggedItemRef.current) {
-      // Validate if dragged item can be moved to this folder
-      if (canMoveToTarget(draggedItemRef.current, item)) {
-        e.dataTransfer.dropEffect = 'move';
-        setDragOver(true);
-        setIsDragTarget(true);
-      } else {
-        e.dataTransfer.dropEffect = 'none';
-        setDragOver(false);
-        setIsDragTarget(false);
+    // Only folders can be drop targets
+    if (!item.is_folder) {
+      e.dataTransfer.dropEffect = 'none';
+      setDragOver(false);
+      setIsDragTarget(false);
+      return;
+    }
+    
+    // Check if we have a dragged item
+    if (!draggedItemRef.current) {
+      // Try to get it from dataTransfer as fallback
+      try {
+        const dragDataStr = e.dataTransfer.getData('application/json');
+        if (dragDataStr) {
+          const dragData = JSON.parse(dragDataStr);
+          // We can't fully validate without the full item, but allow the drop
+          e.dataTransfer.dropEffect = 'move';
+          setDragOver(true);
+          setIsDragTarget(true);
+          return;
+        }
+      } catch (err) {
+        // Ignore parse errors
       }
-    } else if (!item.is_folder) {
+      e.dataTransfer.dropEffect = 'none';
+      setDragOver(false);
+      setIsDragTarget(false);
+      return;
+    }
+    
+    // Validate if dragged item can be moved to this folder
+    if (canMoveToTarget(draggedItemRef.current, item)) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragOver(true);
+      setIsDragTarget(true);
+    } else {
       e.dataTransfer.dropEffect = 'none';
       setDragOver(false);
       setIsDragTarget(false);
@@ -198,33 +226,92 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('DROP EVENT FIRED on:', item.name, 'is_folder:', item.is_folder);
     setDragOver(false);
     setIsDragTarget(false);
     
     try {
-      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      // Get drag data from dataTransfer (this works in drop event)
+      let dragData: any = null;
+      let draggedItemId: number | null = null;
       
-      // Use the stored item from ref if available, otherwise construct minimal item
-      if (!draggedItemRef.current) {
-        console.error('Dragged item ref is null');
+      try {
+        const dragDataStr = e.dataTransfer.getData('application/json');
+        console.log('Drag data string:', dragDataStr);
+        if (dragDataStr) {
+          dragData = JSON.parse(dragDataStr);
+          draggedItemId = dragData.id;
+          console.log('Parsed drag data:', dragData);
+        }
+      } catch (parseErr) {
+        console.warn('Could not parse JSON drag data, trying text/plain:', parseErr);
+        // Fallback to text/plain
+        const textData = e.dataTransfer.getData('text/plain');
+        console.log('Text/plain data:', textData);
+        if (textData) {
+          draggedItemId = parseInt(textData, 10);
+        }
+      }
+      
+      // Try to get item from ref first (works if dragging within same component)
+      let draggedItem = draggedItemRef.current;
+      console.log('Dragged item from ref:', draggedItem);
+      
+      // If ref is null, try to construct minimal item from drag data
+      if (!draggedItem && dragData) {
+        draggedItem = {
+          id: dragData.id,
+          name: dragData.name || 'Unknown',
+          type: dragData.type || 'card',
+          parent_id: dragData.parent_id,
+          is_folder: dragData.is_folder || false,
+          children: [],
+          category_id: dragData.category_id,
+        } as TreeItem;
+        console.log('Constructed dragged item from drag data:', draggedItem);
+      }
+      
+      // If we still don't have an item ID, we can't proceed
+      if (!draggedItemId) {
+        console.error('Could not determine dragged item ID. Drag data:', dragData);
+        alert('Failed to move: Could not identify dragged item');
         return;
       }
       
-      const draggedItem: TreeItem = draggedItemRef.current;
+      // Ensure we're dropping on a folder
+      if (!item.is_folder) {
+        console.log('Drop target is not a folder, ignoring drop');
+        return;
+      }
       
-      if (draggedItem.id === item.id || !item.is_folder) return;
+      // Can't move item to itself
+      if (draggedItemId === item.id) {
+        console.log('Cannot move item to itself');
+        return;
+      }
       
-      // Validate move
-      if (!canMoveToTarget(draggedItem, item)) {
+      // Validate move if we have the full item
+      if (draggedItem && !canMoveToTarget(draggedItem, item)) {
         alert('Cannot move here. Subfolders cannot contain other folders.');
         return;
       }
 
-      // Move to this folder
-      await onMove(draggedItem.id, { parent_id: item.id });
+      console.log('Moving item:', {
+        itemId: draggedItemId,
+        itemName: draggedItem?.name || 'Unknown',
+        targetFolderId: item.id,
+        targetFolderName: item.name
+      });
+
+      // Move to this folder - use the ID we got from drag data
+      await onMove(draggedItemId, { parent_id: item.id });
+      
+      // Clear the ref after successful move
+      draggedItemRef.current = null;
     } catch (err: any) {
       console.error('Error handling drop:', err);
-      alert(err.response?.data?.detail || 'Failed to move item');
+      draggedItemRef.current = null;
+      alert(err.response?.data?.detail || err.message || 'Failed to move item');
     }
   };
 
@@ -370,7 +457,22 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         style={{ marginLeft: `${indentPx}px` }}
       >
         {/* Desktop layout - single row */}
-        <div className="hidden lg:flex items-center flex-1 min-w-0">
+        <div 
+          className="hidden lg:flex items-center flex-1 min-w-0"
+          onDragOver={(e) => {
+            // Allow drop on nested elements
+            if (item.is_folder) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          onDrop={(e) => {
+            // Forward drop to parent handler
+            if (item.is_folder) {
+              handleDrop(e);
+            }
+          }}
+        >
           {/* Drag handle - always visible for draggable items */}
           <div 
             className={`mr-2 transition-opacity ${
@@ -390,7 +492,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           {/* Expand/collapse button - only for items with children */}
           {hasChildren && (
             <button
-              onClick={() => onToggle(item.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle(item.id);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
               className={`mr-2 p-1 hover:bg-gray-200 rounded transition-colors ${
                 isTopLevelFolder ? 'hover:bg-blue-200' : ''
               }`}
@@ -431,7 +537,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               />
             ) : (
               <button
-                onClick={isCard ? handleCardClick : handleFolderClick}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isCard) handleCardClick();
+                  else handleFolderClick();
+                }}
+                onMouseDown={(e) => {
+                  // Don't prevent drag if clicking on the button
+                  // Only stop propagation to prevent parent handlers
+                  e.stopPropagation();
+                }}
                 className={`truncate text-left w-full transition-colors ${
                   isTopLevelFolder 
                     ? 'text-lg font-semibold text-gray-900 hover:text-blue-700' 
@@ -458,7 +573,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             <div className="flex items-center space-x-1">
               {item.parent_id === null && (
                 <button
-                  onClick={handleAddFolder}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddFolder();
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="p-1 hover:bg-blue-100 rounded bg-blue-50"
                   title="Add subfolder"
                 >
@@ -466,7 +585,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 </button>
               )}
               <button
-                onClick={handleAddCard}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddCard();
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="p-1 hover:bg-gray-200 rounded bg-gray-100"
                 title="Add card"
               >
@@ -485,7 +608,22 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         </div>
 
         {/* Mobile layout - responsive stacked design */}
-        <div className="lg:hidden">
+        <div 
+          className="lg:hidden"
+          onDragOver={(e) => {
+            // Allow drop on nested elements
+            if (item.is_folder) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          onDrop={(e) => {
+            // Forward drop to parent handler
+            if (item.is_folder) {
+              handleDrop(e);
+            }
+          }}
+        >
           {/* Top row: Icon, name, and expand button */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center flex-1 min-w-0">
@@ -508,7 +646,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               {/* Expand/collapse button - only for items with children */}
               {hasChildren && (
                 <button
-                  onClick={() => onToggle(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle(item.id);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className={`mr-2 p-1.5 hover:bg-gray-200 rounded transition-colors ${
                     isTopLevelFolder ? 'hover:bg-blue-200' : ''
                   }`}
@@ -550,7 +692,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                   />
                 ) : (
                   <button
-                    onClick={isCard ? handleCardClick : handleFolderClick}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isCard) handleCardClick();
+                      else handleFolderClick();
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className={`truncate text-left w-full transition-colors ${
                       isTopLevelFolder 
                         ? 'text-lg font-semibold text-gray-900 hover:text-blue-700' 
@@ -609,7 +756,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               <div className="flex items-center space-x-2">
                 {item.parent_id === null && (
                   <button
-                    onClick={handleAddFolder}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddFolder();
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                     title="Add subfolder"
                     style={{ minHeight: '44px' }}
@@ -619,7 +770,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                   </button>
                 )}
                 <button
-                  onClick={handleAddCard}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddCard();
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
                   title="Add card"
                   style={{ minHeight: '44px' }}

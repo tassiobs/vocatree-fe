@@ -413,7 +413,19 @@ class ApiClient {
   }
 
   async moveCard(id: number, data: { parent_id?: number | null; category_id?: number | null }): Promise<void> {
-    await this.client.patch(`/cards/${id}/move`, data);
+    // Build request body - only include defined fields
+    const requestBody: { parent_id?: number | null; category_id?: number | null } = {};
+    
+    if (data.parent_id !== undefined) {
+      requestBody.parent_id = data.parent_id;
+    }
+    
+    if (data.category_id !== undefined) {
+      requestBody.category_id = data.category_id;
+    }
+    
+    console.log(`Moving card ${id} with data:`, requestBody);
+    await this.client.patch(`/cards/${id}/move`, requestBody);
   }
 
   async getCardsByParent(parentId: number, params?: {
