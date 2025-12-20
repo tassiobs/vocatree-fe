@@ -7,7 +7,8 @@ import { AICardForm } from './AICardForm';
 import { PracticeCard } from './PracticeCard';
 import { FolderView } from './FolderView';
 import { MoveToModal } from './MoveToModal';
-import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeCardAction } from './DropdownMenu';
+import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeCardAction, createPracticeFolderAction } from './DropdownMenu';
+import { FolderPracticeSession } from './FolderPracticeSession';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
 import { Card } from '../types/api';
@@ -45,6 +46,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [newCardId, setNewCardId] = useState<number | null>(null);
   const [showFolderView, setShowFolderView] = useState(false);
   const [showMoveToModal, setShowMoveToModal] = useState(false);
+  const [showPracticeSession, setShowPracticeSession] = useState(false);
   
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
@@ -309,9 +311,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
       items.push(createPracticeCardAction(() => setShowPracticeCard(true)));
     }
 
-    // Add "Add a card using AI" action for folders
+    // Add "Add a card using AI" and "Practice folder" actions for folders
     if (item.is_folder) {
       items.push(createAICardAction(() => setShowAICardForm(true)));
+      items.push(createPracticeFolderAction(() => setShowPracticeSession(true)));
     }
 
     return items;
@@ -731,6 +734,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           categories={categories}
           onClose={() => setShowMoveToModal(false)}
           onMove={onMove}
+        />
+      )}
+
+      {/* Folder Practice Session */}
+      {showPracticeSession && item.is_folder && (
+        <FolderPracticeSession
+          folderId={item.id}
+          folderName={item.name}
+          categoryId={item.category_id}
+          categoryName={categories.find(cat => cat.id === item.category_id)?.name}
+          onClose={() => setShowPracticeSession(false)}
         />
       )}
     </div>

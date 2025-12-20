@@ -239,3 +239,10 @@ export const createPracticeCardAction = (onPractice: () => void): DropdownMenuIt
   icon: <BookOpen className="h-4 w-4" />,
   onClick: onPractice,
 });
+
+export const createPracticeFolderAction = (onPractice: () => void): DropdownMenuItem => ({
+  id: 'practice-folder',
+  label: 'Practice folder',
+  icon: <BookOpen className="h-4 w-4" />,
+  onClick: onPractice,
+});

@@ -3,7 +3,8 @@ import { TreeItem, CategoryItem } from '../types';
 import { TreeNode } from './TreeNode';
 import { AddItemInput } from './AddItemInput';
 import { AICardForm } from './AICardForm';
-import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction } from './DropdownMenu';
+import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeFolderAction } from './DropdownMenu';
+import { FolderPracticeSession } from './FolderPracticeSession';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { MoveToModal } from './MoveToModal';
 import { X, Folder, Loader2, FileText, Plus, Check, Move } from 'lucide-react';
@@ -41,6 +42,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showAICardForm, setShowAICardForm] = useState(false);
   const [showMoveToModal, setShowMoveToModal] = useState(false);
+  const [showPracticeSession, setShowPracticeSession] = useState(false);
   const isRootFolder = folder.parent_id === null;
 
   useEffect(() => {
@@ -245,6 +247,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
       },
       createDeleteAction(handleDelete),
       createAICardAction(() => setShowAICardForm(true)),
+      createPracticeFolderAction(() => setShowPracticeSession(true)),
     ];
     return items;
   };
@@ -445,6 +448,17 @@ export const FolderView: React.FC<FolderViewProps> = ({
             categories={categories}
             onClose={() => setShowMoveToModal(false)}
             onMove={onMove}
+          />
+        )}
+
+        {/* Folder Practice Session */}
+        {showPracticeSession && (
+          <FolderPracticeSession
+            folderId={folderData.id}
+            folderName={folderData.name}
+            categoryId={folderData.category_id}
+            categoryName={categories.find(cat => cat.id === folderData.category_id)?.name}
+            onClose={() => setShowPracticeSession(false)}
           />
         )}
       </div>
