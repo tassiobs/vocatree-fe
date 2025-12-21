@@ -382,7 +382,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         id: 'move',
         label: 'Move To...',
         icon: <Move className="h-4 w-4" />,
-        onClick: () => setShowMoveToModal(true),
+        onClick: () => {
+          console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
+          setShowMoveToModal(true);
+        },
       },
       createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id))),
     ];
@@ -820,6 +823,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               onAddChild={onAddChild}
               onMove={onMove}
               level={level + 1}
+              categoryId={categoryId}
+              categories={categories}
             />
           ))}
         </div>
