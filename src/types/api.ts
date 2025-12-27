@@ -143,6 +143,11 @@ export interface CategoryUpdate {
   name?: string;
 }
 
+export interface CategoryWithCardsResponse {
+  category: Category | null;
+  cards: Card[];
+}
+
 export interface EvaluateMeaningRequest {
   word: string;
   user_meaning: string;

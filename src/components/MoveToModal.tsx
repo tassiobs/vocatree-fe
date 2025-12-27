@@ -103,9 +103,10 @@ export const MoveToModal: React.FC<MoveToModalProps> = ({
     const isExpanded = expandedFolders.has(folder.id);
     const isSub = isSubfolder(folder);
     const canSelect = !isSub || !item.is_folder;
+    const hasFolderChildren = folder.children.filter((child) => child.is_folder).length > 0;
 
     return (
-      <div key={folder.id} className="ml-4">
+      <div key={folder.id} className={level > 0 ? "ml-4 mt-1" : "mt-1"}>
         <div
           className={`flex items-center p-2 rounded-md cursor-pointer transition-colors ${
             selectedFolderId === folder.id
@@ -122,7 +123,7 @@ export const MoveToModal: React.FC<MoveToModalProps> = ({
             }
           }}
         >
-          {folder.children.length > 0 && (
+          {hasFolderChildren && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -137,13 +138,14 @@ export const MoveToModal: React.FC<MoveToModalProps> = ({
               )}
             </button>
           )}
+          {!hasFolderChildren && <div className="w-6 mr-2" />}
           <Folder className="h-4 w-4 mr-2 text-blue-600" />
           <span className="text-sm flex-1">{folder.name}</span>
           {isSub && item.is_folder && (
             <span className="text-xs text-gray-500 ml-2">(Cannot move folder here)</span>
           )}
         </div>
-        {isExpanded && folder.children.length > 0 && (
+        {isExpanded && hasFolderChildren && (
           <div className="ml-4">
             {folder.children
               .filter((child) => child.is_folder)
@@ -183,21 +185,20 @@ export const MoveToModal: React.FC<MoveToModalProps> = ({
             </div>
           )}
 
-          <div className="space-y-4">
-            {/* Categories */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                <Tag className="h-4 w-4 mr-2 text-purple-600" />
-                Categories
-              </h3>
-              <div className="space-y-1">
-                {categories.map((category) => (
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {/* Categories with their folders grouped */}
+            {categories.map((category) => {
+              const categoryFolders = category.children.filter((child) => child.is_folder);
+              const isCategoryExpanded = expandedFolders.has(category.id);
+              
+              return (
+                <div key={category.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Category header */}
                   <div
-                    key={category.id}
-                    className={`flex items-center p-3 rounded-md cursor-pointer transition-colors ${
+                    className={`flex items-center p-3 cursor-pointer transition-colors ${
                       selectedCategoryId === category.id
-                        ? 'bg-purple-100 border-2 border-purple-500'
-                        : 'hover:bg-gray-100'
+                        ? 'bg-purple-100 border-b border-purple-300'
+                        : 'hover:bg-gray-50 border-b border-gray-200'
                     }`}
                     onClick={() => {
                       setSelectedCategoryId(category.id);
@@ -205,27 +206,38 @@ export const MoveToModal: React.FC<MoveToModalProps> = ({
                       setError(null);
                     }}
                   >
+                    {categoryFolders.length > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFolder(category.id);
+                        }}
+                        className="mr-2 p-1 hover:bg-gray-200 rounded"
+                      >
+                        {isCategoryExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-600" />
+                        )}
+                      </button>
+                    )}
+                    {categoryFolders.length === 0 && <div className="w-6 mr-2" />}
                     <Tag className="h-4 w-4 mr-2 text-purple-600" />
-                    <span className="text-sm flex-1">{category.name}</span>
+                    <span className="text-sm font-semibold flex-1">{category.name}</span>
+                    {categoryFolders.length > 0 && (
+                      <span className="text-xs text-gray-500">({categoryFolders.length} folders)</span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Folders */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                <Folder className="h-4 w-4 mr-2 text-blue-600" />
-                Folders
-              </h3>
-              <div className="space-y-1 max-h-60 overflow-y-auto">
-                {categories.map((category) =>
-                  category.children
-                    .filter((child) => child.is_folder)
-                    .map((folder) => renderFolder(folder))
-                )}
-              </div>
-            </div>
+                  
+                  {/* Folders under this category */}
+                  {isCategoryExpanded && categoryFolders.length > 0 && (
+                    <div className="bg-gray-50 p-2">
+                      {categoryFolders.map((folder) => renderFolder(folder, 0))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 

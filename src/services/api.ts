@@ -12,6 +12,7 @@ import {
   Category,
   CategoryListResponse,
   CategoryUpdate,
+  CategoryWithCardsResponse,
   EvaluateMeaningRequest,
   EvaluateMeaningResponse,
   EvaluateExamplePhraseRequest,
@@ -449,6 +450,11 @@ class ApiClient {
   async getCategories(): Promise<Category[]> {
     const response: AxiosResponse<CategoryListResponse> = await this.client.get('/categories/');
     return response.data.items;
+  }
+
+  async getCategoriesWithCards(): Promise<CategoryWithCardsResponse[]> {
+    const response: AxiosResponse<CategoryWithCardsResponse[]> = await this.client.get('/categories/with-cards');
+    return response.data;
   }
 
   async createCategory(name: string): Promise<Category> {

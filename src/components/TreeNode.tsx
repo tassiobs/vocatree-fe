@@ -376,35 +376,54 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
   // Create dropdown menu items
   const getDropdownItems = (): DropdownMenuItem[] => {
-    const items: DropdownMenuItem[] = [
-      createEditAction(() => setIsEditing(true)),
-      {
-        id: 'move',
-        label: 'Move To...',
-        icon: <Move className="h-4 w-4" />,
-        onClick: () => {
-          console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
-          setShowMoveToModal(true);
-        },
-      },
-      createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id))),
-    ];
+    const items: DropdownMenuItem[] = [];
 
-    // Add "Update Card using AI" and "Practice card" actions only for cards (not folders)
+    // For cards (is_folder = false)
     if (!item.is_folder) {
-      items.push({
-        id: 'update-ai',
-        label: 'Update Card using AI',
-        icon: <Sparkles className="h-4 w-4" />,
-        onClick: () => setShowUpdateAI(true),
-      });
-      items.push(createPracticeCardAction(() => setShowPracticeCard(true)));
+      items.push(
+        createPracticeCardAction(() => setShowPracticeCard(true)),
+        {
+          id: 'update-ai',
+          label: 'Update Card using AI',
+          icon: <Sparkles className="h-4 w-4" />,
+          onClick: () => setShowUpdateAI(true),
+        },
+        {
+          id: 'move',
+          label: 'Move To...',
+          icon: <Move className="h-4 w-4" />,
+          onClick: () => {
+            console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
+            setShowMoveToModal(true);
+          },
+        },
+        createEditAction(() => setIsEditing(true)),
+        createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
+      );
     }
 
-    // Add "Add a card using AI" and "Practice folder" actions for folders
+    // For folders (is_folder = true)
     if (item.is_folder) {
-      items.push(createAICardAction(() => setShowAICardForm(true)));
-      items.push(createPracticeFolderAction(() => setShowPracticeSession(true)));
+      items.push(
+        createPracticeFolderAction(() => setShowPracticeSession(true)),
+        {
+          id: 'update-ai',
+          label: 'Update Card using AI',
+          icon: <Sparkles className="h-4 w-4" />,
+          onClick: () => setShowUpdateAI(true),
+        },
+        {
+          id: 'move',
+          label: 'Move To...',
+          icon: <Move className="h-4 w-4" />,
+          onClick: () => {
+            console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
+            setShowMoveToModal(true);
+          },
+        },
+        createEditAction(() => setIsEditing(true)),
+        createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
+      );
     }
 
     return items;

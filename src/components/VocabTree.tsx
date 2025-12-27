@@ -31,50 +31,39 @@ export const VocabTree: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      // First try to get categories
-      let categoriesData;
-      try {
-        categoriesData = await apiClient.getCategories();
-        console.log('Categories response:', categoriesData);
-      } catch (categoryErr: any) {
-        console.error('Categories endpoint error:', categoryErr);
-        // If categories endpoint doesn't exist, fall back to loading all cards without categories
-        const allCards = await apiClient.getCardsHierarchy();
-        const treeData = buildTree(allCards);
-        
-        // Create a default "All Items" category
-        setCategories([{
-          id: 0,
-          name: 'All Items',
-          isExpanded: true,
-          children: treeData,
-        }]);
-        setIsLoading(false);
-        return;
-      }
+      // Use the new combined endpoint that returns categories with their cards
+      const categoriesWithCards = await apiClient.getCategoriesWithCards();
+      console.log('Categories with cards response:', categoriesWithCards);
       
-      const categoriesWithChildren = await Promise.all(
-        categoriesData.map(async (category) => {
-          try {
-            const cards = await apiClient.getCardsHierarchy(category.id);
-            const treeData = buildTree(cards);
-            return {
-              id: category.id,
-              name: category.name,
-              isExpanded: false,
-              children: treeData,
-            };
-          } catch (err: any) {
-            console.error(`Error loading cards for category ${category.id}:`, err);
-            return {
-              id: category.id,
-              name: category.name,
-              isExpanded: false,
-              children: [],
-            };
-          }
-        })
-      );
+      const categoriesWithChildren = categoriesWithCards.map((item) => {
+        // Log cards to verify is_folder field
+        if (item.cards && item.cards.length > 0) {
+          console.log(`Category ${item.category?.name || 'Uncategorized'}:`, 
+            item.cards.map(card => ({ id: card.id, name: card.name, is_folder: card.is_folder }))
+          );
+        }
+        
+        // Handle null category (uncategorized items)
+        if (!item.category) {
+          const treeData = buildTree(item.cards || []);
+          return {
+            id: 0, // Use 0 for uncategorized items
+            name: 'Uncategorized',
+            isExpanded: false,
+            children: treeData,
+          };
+        }
+        
+        // Handle regular category
+        const treeData = buildTree(item.cards || []);
+        return {
+          id: item.category.id,
+          name: item.category.name,
+          isExpanded: false,
+          children: treeData,
+        };
+      });
+      
       setCategories(categoriesWithChildren);
     } catch (err: any) {
       console.error('Error loading categories:', err);

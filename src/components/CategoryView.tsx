@@ -251,8 +251,8 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   // Create dropdown menu items for category
   const getCategoryDropdownItems = (): DropdownMenuItem[] => {
     return [
-      createEditAction(() => setIsEditing(true)),
       createAICardAction(() => setShowAICardForm(true)),
+      createEditAction(() => setIsEditing(true)),
       createDeleteAction(handleDelete),
     ];
   };

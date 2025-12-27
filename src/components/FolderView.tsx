@@ -3,11 +3,12 @@ import { TreeItem, CategoryItem } from '../types';
 import { TreeNode } from './TreeNode';
 import { AddItemInput } from './AddItemInput';
 import { AICardForm } from './AICardForm';
+import { UpdateCardAI } from './UpdateCardAI';
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction, createPracticeFolderAction } from './DropdownMenu';
 import { FolderPracticeSession } from './FolderPracticeSession';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { MoveToModal } from './MoveToModal';
-import { X, Folder, Loader2, FileText, Plus, Check, Move } from 'lucide-react';
+import { X, Folder, Loader2, FileText, Plus, Check, Move, Sparkles } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { Card } from '../types/api';
 import { cardToTreeItem } from '../utils/treeUtils';
@@ -43,6 +44,8 @@ export const FolderView: React.FC<FolderViewProps> = ({
   const [showAICardForm, setShowAICardForm] = useState(false);
   const [showMoveToModal, setShowMoveToModal] = useState(false);
   const [showPracticeSession, setShowPracticeSession] = useState(false);
+  const [showUpdateAI, setShowUpdateAI] = useState(false);
+  const [folderCard, setFolderCard] = useState<Card | null>(null);
   const isRootFolder = folder.parent_id === null;
 
   useEffect(() => {
@@ -238,16 +241,31 @@ export const FolderView: React.FC<FolderViewProps> = ({
   // Create dropdown menu items for folder
   const getFolderDropdownItems = (): DropdownMenuItem[] => {
     const items: DropdownMenuItem[] = [
-      createEditAction(() => setIsEditing(true)),
+      createPracticeFolderAction(() => setShowPracticeSession(true)),
+      {
+        id: 'update-ai',
+        label: 'Update Card using AI',
+        icon: <Sparkles className="h-4 w-4" />,
+        onClick: async () => {
+          try {
+            // Load folder as card for AI update
+            const cardData = await apiClient.getCard(folderData.id);
+            setFolderCard(cardData);
+            setShowUpdateAI(true);
+          } catch (err: any) {
+            console.error('Error loading folder for AI update:', err);
+            alert('Failed to load folder data for AI update');
+          }
+        },
+      },
       {
         id: 'move',
         label: 'Move To...',
         icon: <Move className="h-4 w-4" />,
         onClick: () => setShowMoveToModal(true),
       },
+      createEditAction(() => setIsEditing(true)),
       createDeleteAction(handleDelete),
-      createAICardAction(() => setShowAICardForm(true)),
-      createPracticeFolderAction(() => setShowPracticeSession(true)),
     ];
     return items;
   };
@@ -459,6 +477,26 @@ export const FolderView: React.FC<FolderViewProps> = ({
             categoryId={folderData.category_id}
             categoryName={categories.find(cat => cat.id === folderData.category_id)?.name}
             onClose={() => setShowPracticeSession(false)}
+          />
+        )}
+
+        {/* Update Card AI Modal */}
+        {showUpdateAI && folderCard && (
+          <UpdateCardAI
+            card={folderCard}
+            onClose={() => {
+              setShowUpdateAI(false);
+              setFolderCard(null);
+            }}
+            onSuccess={async (updatedCard: Card) => {
+              setShowUpdateAI(false);
+              setFolderCard(null);
+              // Refresh folder data
+              await loadFolderData();
+              if (onRefresh) {
+                onRefresh();
+              }
+            }}
           />
         )}
       </div>

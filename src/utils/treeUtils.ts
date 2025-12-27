@@ -55,6 +55,7 @@ export const buildTree = (cards: Card[], expandedIds?: Set<number>): TreeItem[] 
       notes: card.notes,
       created_at: card.created_at,
       user_created: card.user_created,
+      category_id: card.category_id ?? undefined,
     };
   };
 
