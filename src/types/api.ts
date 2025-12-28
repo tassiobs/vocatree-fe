@@ -109,6 +109,28 @@ export interface CardListResponse {
   items: Card[];
 }
 
+export interface ReviewedCard {
+  id: number;
+  name: string;
+  created_at: string;
+  parent_id: number | null;
+  parent_name: string | null;
+  category_id: number | null;
+  category_name: string | null;
+  is_folder: boolean;
+  last_reviewed_at: string;
+  next_review_at: string | null;
+  review_count: number;
+  mastery_level: string;
+}
+
+export interface ReviewedCardsResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  items: ReviewedCard[];
+}
+
 export interface MoveCardRequest {
   parent_id?: number | null;
   category_id?: number | null;

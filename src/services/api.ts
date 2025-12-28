@@ -13,6 +13,7 @@ import {
   CategoryListResponse,
   CategoryUpdate,
   CategoryWithCardsResponse,
+  ReviewedCardsResponse,
   EvaluateMeaningRequest,
   EvaluateMeaningResponse,
   EvaluateExamplePhraseRequest,
@@ -443,6 +444,13 @@ class ApiClient {
   async getCardsHierarchy(categoryId?: number): Promise<Card[]> {
     const params = categoryId ? { category_id: categoryId } : {};
     const response: AxiosResponse<Card[]> = await this.client.get('/cards/hierarchy', { params });
+    return response.data;
+  }
+
+  async getReviewedCards(days: number = 7): Promise<ReviewedCardsResponse> {
+    const response: AxiosResponse<ReviewedCardsResponse> = await this.client.get('/cards/reviewed', { 
+      params: { days } 
+    });
     return response.data;
   }
 
