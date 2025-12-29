@@ -91,13 +91,13 @@ export const Layout: React.FC = () => {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Vocatree</h1>
-                <span className="ml-2 text-sm text-gray-500">English Vocabulary</span>
+            <div className="flex items-center space-x-3 sm:space-x-6 flex-1 min-w-0">
+              <div className="flex items-center min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Vocatree</h1>
+                <span className="ml-2 text-xs sm:text-sm text-gray-500 hidden sm:inline">English Vocabulary</span>
               </div>
               
-              {/* Navigation */}
+              {/* Navigation - Desktop */}
               <nav className="hidden md:flex items-center space-x-1">
                 <Link
                   to="/dashboard"
@@ -120,6 +120,34 @@ export const Layout: React.FC = () => {
                 >
                   <FolderTree className="h-4 w-4" />
                   <span>Library</span>
+                </Link>
+              </nav>
+
+              {/* Navigation - Mobile */}
+              <nav className="md:hidden flex items-center space-x-1 ml-auto mr-2">
+                <Link
+                  to="/dashboard"
+                  className={`p-2 rounded-md transition-colors ${
+                    location.pathname === '/dashboard'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Dashboard"
+                  aria-label="Dashboard"
+                >
+                  <LayoutDashboard className="h-5 w-5" />
+                </Link>
+                <Link
+                  to="/tree"
+                  className={`p-2 rounded-md transition-colors ${
+                    location.pathname === '/tree'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Library"
+                  aria-label="Library"
+                >
+                  <FolderTree className="h-5 w-5" />
                 </Link>
               </nav>
             </div>
