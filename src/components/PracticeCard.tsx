@@ -82,6 +82,14 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
     loadCard();
   }, [cardId]);
 
+  // Increment review_count when practice starts (after card is loaded)
+  useEffect(() => {
+    if (card && !lastReviewedUpdated) {
+      updateLastReviewed();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card]);
+
   const loadCard = async () => {
     try {
       setIsLoading(true);
@@ -134,14 +142,18 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   };
 
   const updateLastReviewed = async () => {
-    if (!lastReviewedUpdated) {
+    if (!lastReviewedUpdated && card) {
       try {
+        const currentReviewCount = card.review_count || 0;
         await apiClient.updateCard(cardId, {
           last_reviewed_at: new Date().toISOString(),
+          review_count: currentReviewCount + 1,
         });
         setLastReviewedUpdated(true);
+        // Reload card to get updated review_count
+        await loadCard();
       } catch (err: any) {
-        console.error('Error updating last_reviewed_at:', err);
+        console.error('Error updating last_reviewed_at and review_count:', err);
         // Don't show error to user, just log it
       }
     }

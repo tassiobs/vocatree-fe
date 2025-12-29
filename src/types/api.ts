@@ -54,6 +54,7 @@ export interface Card {
   etymology?: string | null;
   mastery_level?: string | null;
   last_reviewed_at?: string | null;
+  review_count?: number;
   notes: string | null;
   created_at: string;
   user_created: number;
@@ -95,6 +96,7 @@ export interface CardUpdate {
   mastery_level?: string | null;
   notes?: string | null;
   last_reviewed_at?: string | null;
+  review_count?: number | null;
 }
 
 export interface CardAIEnrichRequest {

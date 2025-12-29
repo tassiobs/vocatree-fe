@@ -136,13 +136,16 @@ export const FolderPracticeSession: React.FC<FolderPracticeSessionProps> = ({
   };
 
   const handlePractice = async () => {
-    if (currentCardId === null) return;
+    if (currentCardId === null || !currentCard) return;
     
     try {
-      // Update last_reviewed_at to current date/time
+      // Update last_reviewed_at and increment review_count
       const now = new Date().toISOString();
+      const currentReviewCount = currentCard.review_count || 0;
+      
       await apiClient.updateCard(currentCardId, {
         last_reviewed_at: now,
+        review_count: currentReviewCount + 1,
       });
       
       // Reload card to get updated data
@@ -151,7 +154,7 @@ export const FolderPracticeSession: React.FC<FolderPracticeSessionProps> = ({
       // Show practice form
       setShowPracticeForm(true);
     } catch (err: any) {
-      console.error('Error updating last_reviewed_at:', err);
+      console.error('Error updating card:', err);
       // Still show practice form even if update fails
       setShowPracticeForm(true);
     }
