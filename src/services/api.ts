@@ -17,7 +17,9 @@ import {
   EvaluateMeaningRequest,
   EvaluateMeaningResponse,
   EvaluateExamplePhraseRequest,
-  EvaluateExamplePhraseResponse
+  EvaluateExamplePhraseResponse,
+  CardReviewRequest,
+  CardReviewResponse
 } from '../types/api';
 
 class ApiClient {
@@ -451,6 +453,24 @@ class ApiClient {
     const response: AxiosResponse<ReviewedCardsResponse> = await this.client.get('/cards/reviewed', { 
       params: { days } 
     });
+    return response.data;
+  }
+
+  async getCardReview(cardId: number): Promise<CardReviewResponse | null> {
+    try {
+      const response: AxiosResponse<CardReviewResponse> = await this.client.get(`/cards/${cardId}/review`);
+      return response.data;
+    } catch (error: any) {
+      // If 404, return null (no review record exists yet)
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async logCardReview(cardId: number, reviewData: CardReviewRequest): Promise<CardReviewResponse> {
+    const response: AxiosResponse<CardReviewResponse> = await this.client.post(`/cards/${cardId}/review`, reviewData);
     return response.data;
   }
 

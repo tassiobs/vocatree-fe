@@ -196,5 +196,27 @@ export interface EvaluateExamplePhraseResponse {
   refined_phrase: string;
 }
 
+export interface CardReviewRequest {
+  last_reviewed_at: string;
+  review_count: number;
+}
+
+export interface CardReviewResponse {
+  id: number;
+  card_id: number;
+  user_id: number;
+  mastery_level: string;
+  last_reviewed_at: string;
+  next_review_at: string;
+  review_count: number;
+  used_in_writing_count: number;
+  used_in_speaking_count: number;
+  last_used_in_writing_at: string;
+  last_used_in_speaking_at: string;
+  use_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Note: ApiResponse and ApiError types are defined here for future use
 // but are not currently used in the implementation

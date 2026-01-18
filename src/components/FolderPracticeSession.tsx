@@ -139,13 +139,16 @@ export const FolderPracticeSession: React.FC<FolderPracticeSessionProps> = ({
     if (currentCardId === null || !currentCard) return;
     
     try {
-      // Update last_reviewed_at and increment review_count
+      // Get current review record
+      const currentReview = await apiClient.getCardReview(currentCardId);
+      const currentReviewCount = currentReview?.review_count || 0;
+      const newReviewCount = currentReviewCount + 1;
       const now = new Date().toISOString();
-      const currentReviewCount = currentCard.review_count || 0;
-      
-      await apiClient.updateCard(currentCardId, {
+
+      // Log the review
+      await apiClient.logCardReview(currentCardId, {
         last_reviewed_at: now,
-        review_count: currentReviewCount + 1,
+        review_count: newReviewCount,
       });
       
       // Reload card to get updated data

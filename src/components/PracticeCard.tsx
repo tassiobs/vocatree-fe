@@ -19,7 +19,6 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastReviewedUpdated, setLastReviewedUpdated] = useState(false);
 
   // Field states
   const [meanings, setMeanings] = useState<FieldState>({
@@ -80,7 +79,7 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
 
   // Increment review_count when practice starts (after card is loaded)
   useEffect(() => {
-    if (card && !lastReviewedUpdated) {
+    if (card) {
       updateLastReviewed();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,24 +138,30 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   };
 
   const updateLastReviewed = async () => {
-    if (!lastReviewedUpdated && card) {
-      try {
-        const currentReviewCount = card.review_count || 0;
-        await apiClient.updateCard(cardId, {
-          last_reviewed_at: new Date().toISOString(),
-          review_count: currentReviewCount + 1,
-        });
-        setLastReviewedUpdated(true);
-        // Update local state instead of reloading to avoid double loading
-        setCard({
-          ...card,
-          last_reviewed_at: new Date().toISOString(),
-          review_count: currentReviewCount + 1,
-        });
-      } catch (err: any) {
-        console.error('Error updating last_reviewed_at and review_count:', err);
-        // Don't show error to user, just log it
-      }
+    if (!card) return;
+
+    try {
+      // Get current review record
+      const currentReview = await apiClient.getCardReview(cardId);
+      const currentReviewCount = currentReview?.review_count || 0;
+      const newReviewCount = currentReviewCount + 1;
+      const now = new Date().toISOString();
+
+      // Log the review
+      await apiClient.logCardReview(cardId, {
+        last_reviewed_at: now,
+        review_count: newReviewCount,
+      });
+
+      // Update local state instead of reloading to avoid double loading
+      setCard({
+        ...card,
+        last_reviewed_at: now,
+        review_count: newReviewCount,
+      });
+    } catch (err: any) {
+      console.error('Error updating last_reviewed_at and review_count:', err);
+      // Don't show error to user, just log it
     }
   };
 
