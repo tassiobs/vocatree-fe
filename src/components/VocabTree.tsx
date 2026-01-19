@@ -4,10 +4,12 @@ import { CategoryNode } from './CategoryNode';
 import { AddItemInput } from './AddItemInput';
 import { AITreeGenerator } from './AITreeGenerator';
 import { apiClient } from '../services/api';
+import { useInstance } from '../hooks/useInstance';
 import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem, getExpandedIds, moveItemAcrossCategories } from '../utils/treeUtils';
 import { Loader2, Sparkles, Tag, Check } from 'lucide-react';
 
 export const VocabTree: React.FC = () => {
+  const { selectedInstanceId } = useInstance();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,16 +25,20 @@ export const VocabTree: React.FC = () => {
 
   // Load initial data
   useEffect(() => {
-    loadCategories();
-  }, []);
+    if (selectedInstanceId !== null) {
+      loadCategories();
+    }
+  }, [selectedInstanceId]);
 
   const loadCategories = async () => {
+    if (selectedInstanceId === null) return;
+
     try {
       setIsLoading(true);
       setError(null);
       
       // Use the new combined endpoint that returns categories with their cards
-      const categoriesWithCards = await apiClient.getCategoriesWithCards();
+      const categoriesWithCards = await apiClient.getCategoriesWithCards(selectedInstanceId);
       console.log('Categories with cards response:', categoriesWithCards);
       
       const categoriesWithChildren = categoriesWithCards.map((item) => {
@@ -150,7 +156,7 @@ export const VocabTree: React.FC = () => {
         return prevCategories; // Return unchanged for now, will update after fetch
       });
       
-      const updatedCards = await apiClient.getCardsHierarchy(categoryId);
+      const updatedCards = await apiClient.getCardsHierarchy(categoryId, selectedInstanceId || undefined);
       
       setCategories(prevCategories => {
         const currentCategory = prevCategories.find(cat => cat.id === categoryId);

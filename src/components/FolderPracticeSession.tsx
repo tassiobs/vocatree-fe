@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, SkipForward, BookOpen, Loader2, Folder, Tag } from 'lucide-react';
 import { apiClient } from '../services/api';
+import { useInstance } from '../hooks/useInstance';
 import { Card } from '../types/api';
 import { FolderPracticeForm } from './FolderPracticeForm';
 
@@ -29,6 +30,7 @@ export const FolderPracticeSession: React.FC<FolderPracticeSessionProps> = ({
   categoryName,
   onClose,
 }) => {
+  const { selectedInstanceId } = useInstance();
   const [folderCardIds, setFolderCardIds] = useState<number[]>([]);
   const [cycleQueue, setCycleQueue] = useState<number[]>([]);
   const [currentCardId, setCurrentCardId] = useState<number | null>(null);
@@ -42,8 +44,10 @@ export const FolderPracticeSession: React.FC<FolderPracticeSessionProps> = ({
 
   // Load folder cards on mount
   useEffect(() => {
-    loadFolderCards();
-  }, [folderId]);
+    if (selectedInstanceId !== null) {
+      loadFolderCards();
+    }
+  }, [folderId, selectedInstanceId]);
 
   // Load current card when currentCardId changes
   useEffect(() => {
@@ -53,12 +57,13 @@ export const FolderPracticeSession: React.FC<FolderPracticeSessionProps> = ({
   }, [currentCardId]);
 
   const loadFolderCards = async () => {
+    if (selectedInstanceId === null) return;
     try {
       setIsLoading(true);
       setError(null);
 
       // Get all cards in the folder (only cards, not folders)
-      const response = await apiClient.getCards({ parent_id: folderId });
+      const response = await apiClient.getCards({ parent_id: folderId, instance_id: selectedInstanceId });
       const cards = response.items.filter((card: Card) => !card.is_folder);
       const cardIds = cards.map((card: Card) => card.id);
 

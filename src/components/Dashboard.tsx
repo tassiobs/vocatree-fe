@@ -1,27 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../services/api';
-import { ReviewedCard } from '../types/api';
+import { CardReviewItem } from '../types/api';
+import { useInstance } from '../hooks/useInstance';
 import { PracticeCard } from './PracticeCard';
 import { Loader2, BookOpen, Folder, Tag, TrendingUp, ArrowRight } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const [reviewedCards, setReviewedCards] = useState<ReviewedCard[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { selectedInstanceId, isLoading: instancesLoading } = useInstance();
+  const [reviewedCards, setReviewedCards] = useState<CardReviewItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<number>(7);
   const [total, setTotal] = useState<number>(0);
   const [practicingCardId, setPracticingCardId] = useState<number | null>(null);
 
   useEffect(() => {
-    loadReviewedCards();
-  }, [selectedDays]);
+    if (selectedInstanceId !== null && !instancesLoading) {
+      loadReviewedCards();
+    }
+  }, [selectedDays, selectedInstanceId, instancesLoading]);
 
   const loadReviewedCards = async () => {
+    if (selectedInstanceId === null) return;
+
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.getReviewedCards(selectedDays);
+      const response = await apiClient.getCardReviews(selectedInstanceId, selectedDays);
       setReviewedCards(response.items);
       setTotal(response.total);
     } catch (err: any) {
@@ -118,7 +124,20 @@ export const Dashboard: React.FC = () => {
 
         {/* Cards List */}
         <div className="p-4 sm:p-6">
-          {isLoading ? (
+          {instancesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-blue-600" />
+              <span className="ml-2 text-sm sm:text-base text-gray-600">Loading instances...</span>
+            </div>
+          ) : selectedInstanceId === null ? (
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-gray-500">
+              <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mb-4 opacity-50" />
+              <p className="text-base sm:text-lg font-medium mb-2">No instance selected</p>
+              <p className="text-xs sm:text-sm text-center mb-4 px-4">
+                Please select an instance to view reviewed cards
+              </p>
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-blue-600" />
               <span className="ml-2 text-sm sm:text-base text-gray-600">Loading reviewed cards...</span>
@@ -151,24 +170,24 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-2">
               {reviewedCards.map((card) => (
                 <div
-                  key={card.id}
+                  key={card.card_id}
                   className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => setPracticingCardId(card.id)}
+                  onClick={() => setPracticingCardId(card.card_id)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     {/* Left side: Card name and metadata */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 break-words">{card.name}</h3>
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 break-words">{card.card_name}</h3>
                         <span className="text-xs text-blue-600 font-medium">Practice</span>
                       </div>
                       
                       {/* Category and Folder Info - more subtle */}
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        {card.category_name && (
+                        {card.card_category_name && (
                           <div className="flex items-center space-x-1 text-xs text-gray-500">
                             <Tag className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                            <span className="break-words">{card.category_name}</span>
+                            <span className="break-words">{card.card_category_name}</span>
                           </div>
                         )}
                         {card.parent_name && (

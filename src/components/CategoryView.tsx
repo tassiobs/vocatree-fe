@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, c
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { X, Tag, Loader2, Folder, Plus, Check } from 'lucide-react';
 import { apiClient } from '../services/api';
+import { useInstance } from '../hooks/useInstance';
 import { buildTree } from '../utils/treeUtils';
 
 interface CategoryViewProps {
@@ -28,6 +29,7 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   onCategoryRefresh,
   categories = [],
 }) => {
+  const { selectedInstanceId } = useInstance();
   const [categoryData, setCategoryData] = useState<CategoryItem>(category);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -41,9 +43,11 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   const [showAICardForm, setShowAICardForm] = useState(false);
 
   useEffect(() => {
-    loadCategoryData();
-    loadAllCategories();
-  }, [category.id]);
+    if (selectedInstanceId !== null) {
+      loadCategoryData();
+      loadAllCategories();
+    }
+  }, [category.id, selectedInstanceId]);
 
   // Sync editName with category.name when category changes
   useEffect(() => {
@@ -53,8 +57,9 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   }, [categoryData.name, isEditing]);
 
   const loadAllCategories = async () => {
+    if (selectedInstanceId === null) return;
     try {
-      const cats = await apiClient.getCategories();
+      const cats = await apiClient.getCategories(selectedInstanceId);
       setAllCategories(cats.map((cat) => ({
         id: cat.id,
         name: cat.name,
@@ -67,9 +72,10 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   };
 
   const loadCategoryData = async () => {
+    if (selectedInstanceId === null) return;
     try {
       setIsLoading(true);
-      const cards = await apiClient.getCardsHierarchy(category.id);
+      const cards = await apiClient.getCardsHierarchy(category.id, selectedInstanceId);
       const treeData = buildTree(cards, expandedIds);
       
       setCategoryData({

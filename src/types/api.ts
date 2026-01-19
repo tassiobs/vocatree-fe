@@ -218,5 +218,55 @@ export interface CardReviewResponse {
   updated_at: string;
 }
 
+export interface Instance {
+  id: number;
+  name: string;
+  description: string;
+  workplace_id: number;
+  created_by: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstanceWithRole {
+  instance: Instance;
+  user_role: string;
+}
+
+export interface InstanceListResponse {
+  items: InstanceWithRole[];
+}
+
+export interface CardReviewItem {
+  id: number;
+  card_id: number;
+  user_id: number;
+  mastery_level: string;
+  last_reviewed_at: string;
+  next_review_at: string;
+  review_count: number;
+  used_in_writing_count: number;
+  used_in_speaking_count: number;
+  last_used_in_writing_at: string;
+  last_used_in_speaking_at: string;
+  use_count: number;
+  created_at: string;
+  updated_at: string;
+  card_name: string;
+  card_category_id: number;
+  card_category_name: string;
+  parent_id: number;
+  parent_name: string;
+  is_folder: boolean;
+}
+
+export interface CardReviewsResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  items: CardReviewItem[];
+}
+
 // Note: ApiResponse and ApiError types are defined here for future use
 // but are not currently used in the implementation

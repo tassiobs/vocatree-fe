@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { InstanceProvider } from './hooks/useInstance';
 import { LoginForm } from './components/LoginForm';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -26,13 +27,15 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="tree" element={<VocabTree />} />
-      </Route>
-    </Routes>
+    <InstanceProvider>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="tree" element={<VocabTree />} />
+        </Route>
+      </Routes>
+    </InstanceProvider>
   );
 };
 

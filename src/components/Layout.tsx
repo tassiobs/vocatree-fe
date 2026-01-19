@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { LogOut, User, Lock, LayoutDashboard, FolderTree } from 'lucide-react';
 import { UpdatePassword } from './UpdatePassword';
+import { InstanceSelector } from './InstanceSelector';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -153,6 +154,7 @@ export const Layout: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              <InstanceSelector />
               <div className="relative">
                 <button
                   ref={buttonRef}

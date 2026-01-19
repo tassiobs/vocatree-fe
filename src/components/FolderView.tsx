@@ -10,6 +10,7 @@ import { handleConditionalDelete } from '../utils/deleteUtils';
 import { MoveToModal } from './MoveToModal';
 import { X, Folder, Loader2, FileText, Plus, Check, Move, Sparkles } from 'lucide-react';
 import { apiClient } from '../services/api';
+import { useInstance } from '../hooks/useInstance';
 import { Card } from '../types/api';
 import { cardToTreeItem } from '../utils/treeUtils';
 
@@ -32,6 +33,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
   onRefresh,
   categories = [],
 }) => {
+  const { selectedInstanceId } = useInstance();
   const [folderData, setFolderData] = useState<TreeItem>(folder);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -49,8 +51,10 @@ export const FolderView: React.FC<FolderViewProps> = ({
   const isRootFolder = folder.parent_id === null;
 
   useEffect(() => {
-    loadFolderData();
-  }, [folder.id]);
+    if (selectedInstanceId !== null) {
+      loadFolderData();
+    }
+  }, [folder.id, selectedInstanceId]);
 
   // Sync editName with folder.name when folder changes
   useEffect(() => {
@@ -60,10 +64,11 @@ export const FolderView: React.FC<FolderViewProps> = ({
   }, [folderData.name, isEditing]);
 
   const loadFolderData = async () => {
+    if (selectedInstanceId === null) return;
     try {
       setIsLoading(true);
       // Get the folder's direct children
-      const response = await apiClient.getCardsByParent(folder.id);
+      const response = await apiClient.getCardsByParent(folder.id, { instance_id: selectedInstanceId });
       const children: TreeItem[] = response.items.map((card: Card) => cardToTreeItem(card));
       
       setFolderData({

@@ -19,7 +19,9 @@ import {
   EvaluateExamplePhraseRequest,
   EvaluateExamplePhraseResponse,
   CardReviewRequest,
-  CardReviewResponse
+  CardReviewResponse,
+  InstanceListResponse,
+  CardReviewsResponse
 } from '../types/api';
 
 class ApiClient {
@@ -359,6 +361,7 @@ class ApiClient {
 
   async getCards(params?: {
     parent_id?: number | null;
+    instance_id?: number;
     limit?: number;
     offset?: number;
   }): Promise<CardListResponse> {
@@ -433,6 +436,7 @@ class ApiClient {
   }
 
   async getCardsByParent(parentId: number, params?: {
+    instance_id?: number;
     limit?: number;
     offset?: number;
   }): Promise<CardListResponse> {
@@ -443,8 +447,14 @@ class ApiClient {
     return response.data;
   }
 
-  async getCardsHierarchy(categoryId?: number): Promise<Card[]> {
-    const params = categoryId ? { category_id: categoryId } : {};
+  async getCardsHierarchy(categoryId?: number, instanceId?: number): Promise<Card[]> {
+    const params: { category_id?: number; instance_id?: number } = {};
+    if (categoryId !== undefined) {
+      params.category_id = categoryId;
+    }
+    if (instanceId !== undefined) {
+      params.instance_id = instanceId;
+    }
     const response: AxiosResponse<Card[]> = await this.client.get('/cards/hierarchy', { params });
     return response.data;
   }
@@ -474,14 +484,33 @@ class ApiClient {
     return response.data;
   }
 
+  async getInstances(): Promise<InstanceListResponse> {
+    const response: AxiosResponse<InstanceListResponse> = await this.client.get('/instances/');
+    return response.data;
+  }
+
+  async getCardReviews(instanceId?: number, days?: number): Promise<CardReviewsResponse> {
+    const params: { instance_id?: number; days?: number } = {};
+    if (instanceId !== undefined) {
+      params.instance_id = instanceId;
+    }
+    if (days !== undefined) {
+      params.days = days;
+    }
+    const response: AxiosResponse<CardReviewsResponse> = await this.client.get('/card-reviews', { params });
+    return response.data;
+  }
+
   // Categories
-  async getCategories(): Promise<Category[]> {
-    const response: AxiosResponse<CategoryListResponse> = await this.client.get('/categories/');
+  async getCategories(instanceId?: number): Promise<Category[]> {
+    const params = instanceId !== undefined ? { instance_id: instanceId } : {};
+    const response: AxiosResponse<CategoryListResponse> = await this.client.get('/categories/', { params });
     return response.data.items;
   }
 
-  async getCategoriesWithCards(): Promise<CategoryWithCardsResponse[]> {
-    const response: AxiosResponse<CategoryWithCardsResponse[]> = await this.client.get('/categories/with-cards');
+  async getCategoriesWithCards(instanceId?: number): Promise<CategoryWithCardsResponse[]> {
+    const params = instanceId !== undefined ? { instance_id: instanceId } : {};
+    const response: AxiosResponse<CategoryWithCardsResponse[]> = await this.client.get('/categories/with-cards', { params });
     return response.data;
   }
 
