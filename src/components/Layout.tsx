@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LogOut, User, Lock, LayoutDashboard, FolderTree } from 'lucide-react';
+import { LogOut, User, Lock, LayoutDashboard, FolderTree, Building2 } from 'lucide-react';
 import { UpdatePassword } from './UpdatePassword';
 import { InstanceSelector } from './InstanceSelector';
 
@@ -122,6 +122,17 @@ export const Layout: React.FC = () => {
                   <FolderTree className="h-4 w-4" />
                   <span>Library</span>
                 </Link>
+                <Link
+                  to="/collections"
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    location.pathname === '/collections'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Building2 className="h-4 w-4" />
+                  <span>Collections</span>
+                </Link>
               </nav>
 
               {/* Navigation - Mobile */}
@@ -149,6 +160,18 @@ export const Layout: React.FC = () => {
                   aria-label="Library"
                 >
                   <FolderTree className="h-5 w-5" />
+                </Link>
+                <Link
+                  to="/collections"
+                  className={`p-2 rounded-md transition-colors ${
+                    location.pathname === '/collections'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Collections"
+                  aria-label="Collections"
+                >
+                  <Building2 className="h-5 w-5" />
                 </Link>
               </nav>
             </div>

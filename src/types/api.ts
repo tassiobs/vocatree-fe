@@ -221,7 +221,7 @@ export interface CardReviewResponse {
 export interface Instance {
   id: number;
   name: string;
-  description: string;
+  description: string | null;
   workplace_id: number;
   created_by: number;
   is_active: boolean;
@@ -266,6 +266,36 @@ export interface CardReviewsResponse {
   limit: number;
   offset: number;
   items: CardReviewItem[];
+}
+
+export interface Workplace {
+  id: number;
+  name: string;
+  description: string | null;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkplaceWithRole {
+  workplace: Workplace;
+  user_role: 'owner' | 'admin' | 'member';
+}
+
+export interface WorkplaceListResponse {
+  items: WorkplaceWithRole[];
+}
+
+export interface CreateCollectionRequest {
+  name: string;
+  description?: string;
+  workplace_id: number;
+}
+
+export interface UpdateCollectionRequest {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
 }
 
 // Note: ApiResponse and ApiError types are defined here for future use

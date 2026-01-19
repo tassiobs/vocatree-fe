@@ -21,7 +21,11 @@ import {
   CardReviewRequest,
   CardReviewResponse,
   InstanceListResponse,
-  CardReviewsResponse
+  CardReviewsResponse,
+  WorkplaceListResponse,
+  Instance,
+  CreateCollectionRequest,
+  UpdateCollectionRequest
 } from '../types/api';
 
 class ApiClient {
@@ -499,6 +503,25 @@ class ApiClient {
     }
     const response: AxiosResponse<CardReviewsResponse> = await this.client.get('/card-reviews', { params });
     return response.data;
+  }
+
+  async getWorkplaces(): Promise<WorkplaceListResponse> {
+    const response: AxiosResponse<WorkplaceListResponse> = await this.client.get('/workplaces/');
+    return response.data;
+  }
+
+  async createCollection(data: CreateCollectionRequest): Promise<Instance> {
+    const response: AxiosResponse<Instance> = await this.client.post('/instances/', data);
+    return response.data;
+  }
+
+  async updateCollection(id: number, data: UpdateCollectionRequest): Promise<Instance> {
+    const response: AxiosResponse<Instance> = await this.client.patch(`/instances/${id}`, data);
+    return response.data;
+  }
+
+  async deleteCollection(id: number): Promise<void> {
+    await this.client.delete(`/instances/${id}`);
   }
 
   // Categories

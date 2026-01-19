@@ -6,6 +6,7 @@ import { LoginForm } from './components/LoginForm';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { VocabTree } from './components/VocabTree';
+import { CollectionsPage } from './components/CollectionsPage';
 import { Loader2 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -33,6 +34,7 @@ const AppContent: React.FC = () => {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="tree" element={<VocabTree />} />
+          <Route path="collections" element={<CollectionsPage />} />
         </Route>
       </Routes>
     </InstanceProvider>
