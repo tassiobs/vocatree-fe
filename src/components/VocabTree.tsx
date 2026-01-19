@@ -185,8 +185,13 @@ export const VocabTree: React.FC = () => {
   }, []);
 
   const handleAddCategory = async (name: string) => {
+    if (selectedInstanceId === null) {
+      setError('Please select an instance before adding a category');
+      return;
+    }
+
     try {
-      const newCategory = await apiClient.createCategory(name);
+      const newCategory = await apiClient.createCategory(name, selectedInstanceId, false);
       const newCategoryItem: CategoryItem = {
         id: newCategory.id,
         name: newCategory.name,

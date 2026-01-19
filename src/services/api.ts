@@ -514,8 +514,12 @@ class ApiClient {
     return response.data;
   }
 
-  async createCategory(name: string): Promise<Category> {
-    const response: AxiosResponse<Category> = await this.client.post('/categories/', { name });
+  async createCategory(name: string, instanceId: number, isDefault: boolean = false): Promise<Category> {
+    const response: AxiosResponse<Category> = await this.client.post('/categories/', { 
+      name, 
+      instance_id: instanceId,
+      is_default: isDefault 
+    });
     return response.data;
   }
 
