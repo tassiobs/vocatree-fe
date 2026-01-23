@@ -189,11 +189,16 @@ export interface EvaluateExamplePhraseRequest {
   example_phrase: string;
   language: string;
   prompt?: string;
+  previous_phrases?: string[];
+  previous_refined_phrases?: string[];
 }
 
 export interface EvaluateExamplePhraseResponse {
+  quality: 'excellent' | 'very_natural' | 'good' | 'understandable_but_unnatural' | 'needs_rewrite';
   feedback: string;
-  refined_phrase: string;
+  refined_phrase: string | null;
+  consolidated_score?: number;
+  aspects_evaluated?: string[];
 }
 
 export interface CardReviewRequest {

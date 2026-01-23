@@ -85,10 +85,25 @@ export const FolderPracticeForm: React.FC<FolderPracticeFormProps> = ({
   const [aiFeedback, setAiFeedback] = useState<EvaluateMeaningResponse | null>(null);
   const [isLoadingAIExampleFeedback, setIsLoadingAIExampleFeedback] = useState(false);
   const [aiExampleFeedback, setAiExampleFeedback] = useState<EvaluateExamplePhraseResponse | null>(null);
+  
+  // Conversation history for phrase evaluation (session-based)
+  const [previousPhrases, setPreviousPhrases] = useState<string[]>([]);
+  const [previousRefinedPhrases, setPreviousRefinedPhrases] = useState<string[]>([]);
 
   useEffect(() => {
     loadCard();
+    // Reset conversation history when cardId changes
+    setPreviousPhrases([]);
+    setPreviousRefinedPhrases([]);
   }, [cardId]);
+  
+  // Reset conversation history when component unmounts
+  useEffect(() => {
+    return () => {
+      setPreviousPhrases([]);
+      setPreviousRefinedPhrases([]);
+    };
+  }, []);
 
   const loadCard = async () => {
     try {
@@ -200,6 +215,8 @@ export const FolderPracticeForm: React.FC<FolderPracticeFormProps> = ({
   const handleGetAIExampleFeedback = async () => {
     if (!card || !newExamplePhraseInput.trim()) return;
 
+    const phrase = newExamplePhraseInput.trim();
+
     try {
       setIsLoadingAIExampleFeedback(true);
       setAiExampleFeedback(null);
@@ -207,11 +224,19 @@ export const FolderPracticeForm: React.FC<FolderPracticeFormProps> = ({
 
       const response = await apiClient.evaluateExamplePhrase({
         word: card.name,
-        example_phrase: newExamplePhraseInput.trim(),
+        example_phrase: phrase,
         language: 'English',
+        previous_phrases: previousPhrases,
+        previous_refined_phrases: previousRefinedPhrases,
       });
 
       setAiExampleFeedback(response);
+      
+      // Update conversation history for next request
+      setPreviousPhrases([...previousPhrases, phrase]);
+      if (response.refined_phrase) {
+        setPreviousRefinedPhrases([...previousRefinedPhrases, response.refined_phrase]);
+      }
     } catch (err: any) {
       console.error('Error getting AI example feedback:', err);
       setError(err.response?.data?.detail || 'Failed to get AI feedback. Please try again.');
@@ -445,6 +470,30 @@ export const FolderPracticeForm: React.FC<FolderPracticeFormProps> = ({
             {/* AI Feedback Display for Example Phrases */}
             {label === 'Example Phrases' && aiExampleFeedback && (
               <div className="mt-3 space-y-3 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+                {/* Quality Badge and Score */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      aiExampleFeedback.quality === 'excellent' ? 'bg-green-100 text-green-800' :
+                      aiExampleFeedback.quality === 'very_natural' ? 'bg-blue-100 text-blue-800' :
+                      aiExampleFeedback.quality === 'good' ? 'bg-yellow-100 text-yellow-800' :
+                      aiExampleFeedback.quality === 'understandable_but_unnatural' ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {aiExampleFeedback.quality.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  {aiExampleFeedback.consolidated_score !== undefined && (
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs font-medium text-gray-600">Score:</span>
+                      <span className="text-sm font-bold text-purple-700">
+                        {aiExampleFeedback.consolidated_score.toFixed(1)} / 10
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Feedback */}
                 <div>
                   <h4 className="text-sm font-semibold text-purple-900 mb-2 flex items-center space-x-1">
                     <Sparkles className="h-4 w-4" />
@@ -454,12 +503,22 @@ export const FolderPracticeForm: React.FC<FolderPracticeFormProps> = ({
                     {aiExampleFeedback.feedback || 'No evaluation provided'}
                   </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-indigo-900 mb-2">Refined Phrase</h4>
-                  <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
-                    {aiExampleFeedback.refined_phrase || 'No refined phrase provided'}
-                  </p>
-                </div>
+
+                {/* Refined Phrase or Success Message */}
+                {aiExampleFeedback.refined_phrase ? (
+                  <div>
+                    <h4 className="text-sm font-semibold text-indigo-900 mb-2">Refined Phrase</h4>
+                    <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
+                      {aiExampleFeedback.refined_phrase}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded p-3">
+                    <p className="text-sm text-green-800 font-medium">
+                      ✓ Perfect! This phrase is excellent as-is. No changes needed!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
