@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, Plus, Loader2, Sparkles } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { Card, EvaluateMeaningResponse, EvaluateExamplePhraseResponse } from '../types/api';
@@ -73,17 +73,23 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   const [isLoadingAIExampleFeedback, setIsLoadingAIExampleFeedback] = useState(false);
   const [aiExampleFeedback, setAiExampleFeedback] = useState<EvaluateExamplePhraseResponse | null>(null);
 
+  // Track if we've already incremented review count for this cardId
+  const hasIncrementedReviewRef = useRef<number | null>(null);
+
   useEffect(() => {
     loadCard();
+    // Reset the ref when cardId changes
+    hasIncrementedReviewRef.current = null;
   }, [cardId]);
 
   // Increment review_count when practice starts (after card is loaded)
   useEffect(() => {
-    if (card) {
+    if (card && hasIncrementedReviewRef.current !== cardId) {
+      hasIncrementedReviewRef.current = cardId;
       updateLastReviewed();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card]);
+  }, [card, cardId]);
 
   const loadCard = async () => {
     try {
