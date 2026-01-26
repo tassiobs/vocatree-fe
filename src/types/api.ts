@@ -193,12 +193,20 @@ export interface EvaluateExamplePhraseRequest {
   previous_refined_phrases?: string[];
 }
 
+export interface GrammarAnalysis {
+  has_errors: boolean;
+  errors: string[] | null;
+}
+
+export type NaturalnessLevel = 'unnatural' | 'understandable_but_unnatural' | 'natural' | 'native_like';
+
+export type ToneLevel = 'formal' | 'neutral' | 'informal';
+
 export interface EvaluateExamplePhraseResponse {
-  quality: 'excellent' | 'very_natural' | 'good' | 'understandable_but_unnatural' | 'needs_rewrite';
-  feedback: string;
-  refined_phrase: string | null;
-  consolidated_score?: number;
-  aspects_evaluated?: string[];
+  grammar: GrammarAnalysis;
+  naturalness: NaturalnessLevel;
+  tone: ToneLevel;
+  alternative_phrase: string;
 }
 
 export interface CardReviewRequest {

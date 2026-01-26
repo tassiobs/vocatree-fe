@@ -75,7 +75,7 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
   
   // Conversation history for phrase evaluation (session-based)
   const [previousPhrases, setPreviousPhrases] = useState<string[]>([]);
-  const [previousRefinedPhrases, setPreviousRefinedPhrases] = useState<string[]>([]);
+  const [previousAlternativePhrases, setPreviousAlternativePhrases] = useState<string[]>([]);
 
   // Track if we've already incremented review count for this cardId
   const hasIncrementedReviewRef = useRef<number | null>(null);
@@ -86,14 +86,14 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
     hasIncrementedReviewRef.current = null;
     // Reset conversation history when cardId changes
     setPreviousPhrases([]);
-    setPreviousRefinedPhrases([]);
+    setPreviousAlternativePhrases([]);
   }, [cardId]);
   
   // Reset conversation history when component unmounts
   useEffect(() => {
     return () => {
       setPreviousPhrases([]);
-      setPreviousRefinedPhrases([]);
+      setPreviousAlternativePhrases([]);
     };
   }, []);
 
@@ -256,16 +256,15 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
         example_phrase: phrase,
         language: 'English',
         previous_phrases: previousPhrases,
-        previous_refined_phrases: previousRefinedPhrases,
+        previous_refined_phrases: previousAlternativePhrases,
       });
 
       setAiExampleFeedback(response);
       
       // Update conversation history for next request
       setPreviousPhrases([...previousPhrases, phrase]);
-      if (response.refined_phrase) {
-        setPreviousRefinedPhrases([...previousRefinedPhrases, response.refined_phrase]);
-      }
+      // alternative_phrase is always provided, so always add it to history
+      setPreviousAlternativePhrases([...previousAlternativePhrases, response.alternative_phrase]);
     } catch (err: any) {
       console.error('Error getting AI example feedback:', err);
       setError(err.response?.data?.detail || 'Failed to get AI feedback. Please try again.');
@@ -495,55 +494,57 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
             {/* AI Feedback Display for Example Phrases */}
             {label === 'Example Phrases' && aiExampleFeedback && (
               <div className="mt-3 space-y-3 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
-                {/* Quality Badge and Score */}
+                {/* Naturalness and Tone Badges */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center space-x-2">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                      aiExampleFeedback.quality === 'excellent' ? 'bg-green-100 text-green-800' :
-                      aiExampleFeedback.quality === 'very_natural' ? 'bg-blue-100 text-blue-800' :
-                      aiExampleFeedback.quality === 'good' ? 'bg-yellow-100 text-yellow-800' :
-                      aiExampleFeedback.quality === 'understandable_but_unnatural' ? 'bg-orange-100 text-orange-800' :
+                      aiExampleFeedback.naturalness === 'native_like' ? 'bg-green-100 text-green-800' :
+                      aiExampleFeedback.naturalness === 'natural' ? 'bg-blue-100 text-blue-800' :
+                      aiExampleFeedback.naturalness === 'understandable_but_unnatural' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-red-100 text-red-800'
                     }`}>
-                      {aiExampleFeedback.quality.replace(/_/g, ' ').toUpperCase()}
+                      {aiExampleFeedback.naturalness.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      aiExampleFeedback.tone === 'formal' ? 'bg-gray-100 text-gray-800' :
+                      aiExampleFeedback.tone === 'neutral' ? 'bg-gray-50 text-gray-700' :
+                      'bg-blue-50 text-blue-700'
+                    }`}>
+                      {aiExampleFeedback.tone.toUpperCase()}
                     </span>
                   </div>
-                  {aiExampleFeedback.consolidated_score !== undefined && (
-                    <div className="flex items-center space-x-1">
-                      <span className="text-xs font-medium text-gray-600">Score:</span>
-                      <span className="text-sm font-bold text-purple-700">
-                        {aiExampleFeedback.consolidated_score.toFixed(1)} / 10
-                      </span>
-                    </div>
-                  )}
                 </div>
 
-                {/* Feedback */}
-                <div>
-                  <h4 className="text-sm font-semibold text-purple-900 mb-2 flex items-center space-x-1">
-                    <Sparkles className="h-4 w-4" />
-                    <span>AI Feedback</span>
-                  </h4>
-                  <div className="text-sm text-gray-700 bg-white p-3 rounded border border-purple-100 break-words whitespace-pre-wrap">
-                    {aiExampleFeedback.feedback || 'No evaluation provided'}
+                {/* Grammar Errors */}
+                {aiExampleFeedback.grammar.has_errors && aiExampleFeedback.grammar.errors && (
+                  <div className="bg-red-50 border border-red-200 rounded p-3">
+                    <h4 className="text-sm font-semibold text-red-900 mb-2">Grammar Errors</h4>
+                    <ul className="list-disc list-inside space-y-1">
+                      {aiExampleFeedback.grammar.errors.map((error, index) => (
+                        <li key={index} className="text-sm text-red-800">
+                          {error}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
+                )}
 
-                {/* Refined Phrase or Success Message */}
-                {aiExampleFeedback.refined_phrase ? (
-                  <div>
-                    <h4 className="text-sm font-semibold text-indigo-900 mb-2">Refined Phrase</h4>
-                    <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
-                      {aiExampleFeedback.refined_phrase}
-                    </p>
-                  </div>
-                ) : (
+                {/* Success Message for No Grammar Errors */}
+                {!aiExampleFeedback.grammar.has_errors && (
                   <div className="bg-green-50 border border-green-200 rounded p-3">
                     <p className="text-sm text-green-800 font-medium">
-                      ✓ Perfect! This phrase is excellent as-is. No changes needed!
+                      ✓ No grammar errors detected!
                     </p>
                   </div>
                 )}
+
+                {/* Alternative Phrase */}
+                <div>
+                  <h4 className="text-sm font-semibold text-indigo-900 mb-2">Alternative Phrase</h4>
+                  <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
+                    {aiExampleFeedback.alternative_phrase}
+                  </p>
+                </div>
               </div>
             )}
           </div>
