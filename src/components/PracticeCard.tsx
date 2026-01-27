@@ -494,9 +494,10 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
             {/* AI Feedback Display for Example Phrases */}
             {label === 'Example Phrases' && aiExampleFeedback && (
               <div className="mt-3 space-y-3 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
-                {/* Naturalness and Tone Badges */}
-                <div className="flex items-center justify-between flex-wrap gap-2">
+                {/* Naturalness and Tone Badges with Labels */}
+                <div className="flex items-center flex-wrap gap-3">
                   <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-600 font-medium">Naturalness:</span>
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${
                       aiExampleFeedback.naturalness === 'native_like' ? 'bg-green-100 text-green-800' :
                       aiExampleFeedback.naturalness === 'natural' ? 'bg-blue-100 text-blue-800' :
@@ -505,6 +506,9 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
                     }`}>
                       {aiExampleFeedback.naturalness.replace(/_/g, ' ').toUpperCase()}
                     </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-600 font-medium">Tone:</span>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       aiExampleFeedback.tone === 'formal' ? 'bg-gray-100 text-gray-800' :
                       aiExampleFeedback.tone === 'neutral' ? 'bg-gray-50 text-gray-700' :
@@ -533,15 +537,15 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
                 {!aiExampleFeedback.grammar.has_errors && (
                   <div className="bg-green-50 border border-green-200 rounded p-3">
                     <p className="text-sm text-green-800 font-medium">
-                      ✓ No grammar errors detected!
+                      ✓ No grammar errors
                     </p>
                   </div>
                 )}
 
-                {/* Alternative Phrase */}
-                <div>
-                  <h4 className="text-sm font-semibold text-indigo-900 mb-2">Alternative Phrase</h4>
-                  <p className="text-sm text-gray-700 bg-white p-3 rounded border border-indigo-100 break-words">
+                {/* Alternative Phrase - Visually Lighter */}
+                <div className="border border-gray-200 rounded p-3 bg-gray-50/50">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Alternative Phrase</h4>
+                  <p className="text-sm text-gray-700 break-words">
                     {aiExampleFeedback.alternative_phrase}
                   </p>
                 </div>
