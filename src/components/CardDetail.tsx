@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { Card } from '../types/api';
-import { ListInput } from './ListInput';
 
 interface CardDetailProps {
   cardId: number;
@@ -15,15 +14,8 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
   const [parentFolder, setParentFolder] = useState<Card | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
 
-  // Expose refresh method to allow external updates
-  const refreshCard = React.useCallback(() => {
-    loadCard();
-  }, [cardId]);
-
-  // Form state
+  // Form state (read-only display values)
   const [name, setName] = useState('');
   const [examplePhrases, setExamplePhrases] = useState<string[]>([]);
   const [meanings, setMeanings] = useState<string[]>([]);
@@ -87,61 +79,6 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
     }
   };
 
-  const handleClose = () => {
-    if (hasChanges) {
-      const confirmed = window.confirm(
-        'You have unsaved changes. Are you sure you want to leave without saving?'
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-    onClose();
-  };
-
-  const handleSave = async () => {
-    if (!card) return;
-
-    try {
-      setIsSaving(true);
-      setError(null);
-
-      await apiClient.updateCard(cardId, {
-        name,
-        example_phrases: examplePhrases.length > 0 ? examplePhrases : null,
-        meanings: meanings.length > 0 ? meanings : null,
-        grammar_roles: grammarRoles.length > 0 ? grammarRoles : null,
-        collocations: collocations.length > 0 ? collocations : null,
-        synonyms: synonyms.length > 0 ? synonyms : null,
-        antonyms: antonyms.length > 0 ? antonyms : null,
-        related_words: relatedWords.length > 0 ? relatedWords : null,
-        word_forms: wordForms.length > 0 ? wordForms : null,
-        videos: videos.length > 0 ? videos : null,
-        use_count: useCount,
-        ipa: ipa || null,
-        register: register || null,
-        difficulty: difficulty || null,
-        etymology: etymology || null,
-        mastery_level: masteryLevel || null,
-        notes: notes || null,
-      });
-
-      setHasChanges(false);
-      onSave();
-      onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save card');
-      console.error('Error saving card:', err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const markAsChanged = () => {
-    if (!hasChanges) {
-      setHasChanges(true);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -175,11 +112,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 my-8">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Card Details</h2>
+        <div className="flex items-start justify-between p-6 border-b border-gray-200">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">{name}</h1>
+            {parentFolder && (
+              <p className="text-sm text-gray-500">in {parentFolder.name}</p>
+            )}
+          </div>
           <button
-            onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-4"
             title="Close"
           >
             <X className="h-5 w-5 text-gray-600" />
@@ -187,311 +129,227 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <div className="p-6 space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto">
           {error && (
             <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
               {error}
             </div>
           )}
 
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                markAsChanged();
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Parent Folder */}
-          {parentFolder && (
+          {/* Meanings - Primary Content */}
+          {meanings.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Folder
-              </label>
-              <input
-                type="text"
-                value={parentFolder.name}
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
-              />
-            </div>
-          )}
-
-          {/* Example Phrases */}
-          <ListInput
-            label="Example Phrases"
-            items={examplePhrases}
-            onChange={(items) => {
-              setExamplePhrases(items);
-              markAsChanged();
-            }}
-            placeholder="Add example phrase..."
-          />
-
-          {/* Meanings */}
-          <ListInput
-            label="Meanings"
-            items={meanings}
-            onChange={(items) => {
-              setMeanings(items);
-              markAsChanged();
-            }}
-            placeholder="Add meaning..."
-          />
-
-          {/* Grammar Roles */}
-          <ListInput
-            label="Grammar Roles"
-            items={grammarRoles}
-            onChange={(items) => {
-              setGrammarRoles(items);
-              markAsChanged();
-            }}
-            placeholder="Add grammar role..."
-          />
-
-          {/* Collocations */}
-          <ListInput
-            label="Collocations"
-            items={collocations}
-            onChange={(items) => {
-              setCollocations(items);
-              markAsChanged();
-            }}
-            placeholder="Add collocation..."
-          />
-
-          {/* Synonyms */}
-          <ListInput
-            label="Synonyms"
-            items={synonyms}
-            onChange={(items) => {
-              setSynonyms(items);
-              markAsChanged();
-            }}
-            placeholder="Add synonym..."
-          />
-
-          {/* Antonyms */}
-          <ListInput
-            label="Antonyms"
-            items={antonyms}
-            onChange={(items) => {
-              setAntonyms(items);
-              markAsChanged();
-            }}
-            placeholder="Add antonym..."
-          />
-
-          {/* Related Words */}
-          <ListInput
-            label="Related Words"
-            items={relatedWords}
-            onChange={(items) => {
-              setRelatedWords(items);
-              markAsChanged();
-            }}
-            placeholder="Add related word..."
-          />
-
-          {/* Word Forms */}
-          <ListInput
-            label="Word Forms"
-            items={wordForms}
-            onChange={(items) => {
-              setWordForms(items);
-              markAsChanged();
-            }}
-            placeholder="Add word form..."
-          />
-
-          {/* Videos */}
-          <ListInput
-            label="Videos"
-            items={videos}
-            onChange={(items) => {
-              setVideos(items);
-              markAsChanged();
-            }}
-            placeholder="Add video..."
-          />
-
-          {/* Times Used (Slider) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Times Used: {useCount}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              value={useCount}
-              onChange={(e) => {
-                setUseCount(parseInt(e.target.value));
-                markAsChanged();
-              }}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>0</span>
-              <span>1</span>
-              <span>2</span>
-              <span>3</span>
-              <span>4</span>
-              <span>5</span>
-            </div>
-          </div>
-
-          {/* IPA */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              IPA (International Phonetic Alphabet)
-            </label>
-            <input
-              type="text"
-              value={ipa}
-              onChange={(e) => {
-                setIpa(e.target.value);
-                markAsChanged();
-              }}
-              placeholder="e.g., /həˈləʊ/"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Register */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Register
-            </label>
-            <input
-              type="text"
-              value={register}
-              onChange={(e) => {
-                setRegister(e.target.value);
-                markAsChanged();
-              }}
-              placeholder="e.g., formal, informal, colloquial"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Difficulty */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Difficulty
-            </label>
-            <select
-              value={difficulty}
-              onChange={(e) => {
-                setDifficulty(e.target.value);
-                markAsChanged();
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select difficulty level</option>
-              <option value="A1">A1</option>
-              <option value="A2">A2</option>
-              <option value="A3">A3</option>
-              <option value="B1">B1</option>
-              <option value="B2">B2</option>
-              <option value="C1">C1</option>
-              <option value="C2">C2</option>
-            </select>
-          </div>
-
-          {/* Etymology */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Etymology
-            </label>
-            <textarea
-              value={etymology}
-              onChange={(e) => {
-                setEtymology(e.target.value);
-                markAsChanged();
-              }}
-              rows={3}
-              placeholder="Enter etymology or word origin..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Mastery Level */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Mastery Level
-            </label>
-            <select
-              value={masteryLevel}
-              onChange={(e) => {
-                setMasteryLevel(e.target.value);
-                markAsChanged();
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select mastery level</option>
-              <option value="New">New</option>
-              <option value="Learning">Learning</option>
-              <option value="Familiar">Familiar</option>
-              <option value="Mastered">Mastered</option>
-            </select>
-          </div>
-
-          {/* Last Reviewed At (Read-only) */}
-          {lastReviewedAt && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Last Reviewed At
-              </label>
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
-                {new Date(lastReviewedAt).toLocaleString()}
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Meanings</h2>
+              <div className="space-y-3">
+                {meanings.map((meaning, index) => (
+                  <div
+                    key={index}
+                    className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md"
+                  >
+                    <p className="text-gray-900 leading-relaxed">{meaning}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                markAsChanged();
-              }}
-              rows={4}
-              placeholder="Enter any additional notes..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+          {/* Example Phrases - Primary Learning Section */}
+          {examplePhrases.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Example Phrases</h2>
+              <div className="space-y-2">
+                {examplePhrases.map((phrase, index) => (
+                  <div
+                    key={index}
+                    className="bg-purple-50 border border-purple-200 p-3 rounded-md"
+                  >
+                    <p className="text-gray-800 italic leading-relaxed">"{phrase}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={handleClose}
-            disabled={isSaving}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving || !hasChanges}
-            className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {/* Secondary Reference Data - Visually Lighter */}
+          <div className="space-y-6 pt-4 border-t border-gray-100">
+            {/* Synonyms, Antonyms, Collocations, Related Words - Chips */}
+            {(synonyms.length > 0 || antonyms.length > 0 || collocations.length > 0 || relatedWords.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {synonyms.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Synonyms</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {synonyms.map((synonym, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+                        >
+                          {synonym}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {antonyms.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Antonyms</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {antonyms.map((antonym, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm"
+                        >
+                          {antonym}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {collocations.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Collocations</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {collocations.map((collocation, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
+                        >
+                          {collocation}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {relatedWords.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Related Words</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {relatedWords.map((word, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm"
+                        >
+                          {word}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Grammar Roles - Chips */}
+            {grammarRoles.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Grammar Roles</h3>
+                <div className="flex flex-wrap gap-2">
+                  {grammarRoles.map((role, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Word Forms - Chips */}
+            {wordForms.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Word Forms</h3>
+                <div className="flex flex-wrap gap-2">
+                  {wordForms.map((form, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                    >
+                      {form}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Videos - Links */}
+            {videos.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Videos</h3>
+                <div className="space-y-2">
+                  {videos.map((video, index) => (
+                    <a
+                      key={index}
+                      href={video}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+                    >
+                      {video}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Metadata - Compact Display */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+              {ipa && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">IPA</p>
+                  <p className="text-sm text-gray-700 font-mono">{ipa}</p>
+                </div>
+              )}
+              {register && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Register</p>
+                  <p className="text-sm text-gray-700">{register}</p>
+                </div>
+              )}
+              {difficulty && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Difficulty</p>
+                  <p className="text-sm text-gray-700">{difficulty}</p>
+                </div>
+              )}
+              {masteryLevel && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Mastery</p>
+                  <p className="text-sm text-gray-700">{masteryLevel}</p>
+                </div>
+              )}
+              {useCount > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Times Used</p>
+                  <p className="text-sm text-gray-700">{useCount}</p>
+                </div>
+              )}
+              {lastReviewedAt && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Last Reviewed</p>
+                  <p className="text-sm text-gray-700">
+                    {new Date(lastReviewedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Etymology - If present */}
+            {etymology && (
+              <div className="pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Etymology</h3>
+                <p className="text-sm text-gray-700 leading-relaxed">{etymology}</p>
+              </div>
+            )}
+
+            {/* Notes - If present */}
+            {notes && (
+              <div className="pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{notes}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
