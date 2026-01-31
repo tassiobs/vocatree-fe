@@ -44,6 +44,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [showAddInput, setShowAddInput] = useState(false);
   const [addType, setAddType] = useState<'folder' | 'card'>('card');
   const [showDetail, setShowDetail] = useState(false);
+  const [showDetailInEditMode, setShowDetailInEditMode] = useState(false);
   const [showUpdateAI, setShowUpdateAI] = useState(false);
   const [showAICardForm, setShowAICardForm] = useState(false);
   const [showPracticeCard, setShowPracticeCard] = useState(false);
@@ -121,6 +122,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
   const handleCardClick = () => {
     if (!isEditing) {
+      setShowDetailInEditMode(false);
       setShowDetail(true);
     }
   };
@@ -133,6 +135,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
   const handleDetailClose = () => {
     setShowDetail(false);
+    setShowDetailInEditMode(false);
   };
 
   const handleDetailSave = () => {
@@ -429,7 +432,15 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               setShowMoveToModal(true);
             },
           },
-          createEditAction(() => setIsEditing(true)),
+          // For cards, Edit opens CardDetail in edit mode instead of inline rename
+          createEditAction(() => {
+            if (!item.is_folder) {
+              setShowDetailInEditMode(true);
+              setShowDetail(true);
+            } else {
+              setIsEditing(true);
+            }
+          }),
           createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
         );
       }
@@ -894,6 +905,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           cardId={item.id}
           onClose={handleDetailClose}
           onSave={handleDetailSave}
+          isEditMode={showDetailInEditMode && !item.is_folder}
         />
       )}
 
