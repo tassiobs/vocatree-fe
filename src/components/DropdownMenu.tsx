@@ -160,29 +160,42 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
           role="menu"
           aria-orientation="vertical"
         >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleItemClick(item)}
-              disabled={item.disabled}
-              className={`
-                w-full flex items-center px-4 py-3 text-sm transition-colors
-                ${item.disabled
-                  ? 'opacity-50 cursor-not-allowed text-gray-400'
-                  : item.destructive
-                  ? 'text-red-600 hover:bg-red-50 active:bg-red-100'
-                  : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                }
-              `}
-              style={{ minHeight: '44px' }} // Mobile-friendly tap target
-              role="menuitem"
-            >
-              <div className="mr-3 flex-shrink-0">
-                {item.icon}
-              </div>
-              <span className="text-left flex-1">{item.label}</span>
-            </button>
-          ))}
+          {items.map((item, index) => {
+            // Handle divider
+            if (item.id === 'divider' || (!item.label && item.disabled)) {
+              return (
+                <div
+                  key={`divider-${index}`}
+                  className="h-px bg-gray-200 my-1"
+                  role="separator"
+                />
+              );
+            }
+            
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                disabled={item.disabled}
+                className={`
+                  w-full flex items-center px-4 py-3 text-sm transition-colors
+                  ${item.disabled
+                    ? 'opacity-50 cursor-not-allowed text-gray-400'
+                    : item.destructive
+                    ? 'text-red-600 hover:bg-red-50 active:bg-red-100'
+                    : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                  }
+                `}
+                style={{ minHeight: '44px' }} // Mobile-friendly tap target
+                role="menuitem"
+              >
+                <div className="mr-3 flex-shrink-0">
+                  {item.icon}
+                </div>
+                <span className="text-left flex-1">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

@@ -906,6 +906,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           onClose={handleDetailClose}
           onSave={handleDetailSave}
           isEditMode={showDetailInEditMode && !item.is_folder}
+          isInstanceOwner={isInstanceOwner}
+          onDelete={onDelete}
+          onMove={onMove}
+          categories={categories}
+          onEdit={() => {
+            setShowDetailInEditMode(true);
+            // CardDetail will switch to edit mode
+          }}
         />
       )}
 

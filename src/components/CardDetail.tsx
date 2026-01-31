@@ -1,16 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Trash2, Save, AlertTriangle } from 'lucide-react';
+import { X, Plus, Trash2, Save, AlertTriangle, Edit2, Sparkles, BookOpen, Move, MoreVertical } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { Card, CardUpdate } from '../types/api';
+import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createPracticeCardAction } from './DropdownMenu';
+import { PracticeCard } from './PracticeCard';
+import { UpdateCardAI } from './UpdateCardAI';
+import { MoveToModal } from './MoveToModal';
+import { handleConditionalDelete } from '../utils/deleteUtils';
+import { TreeItem } from '../types';
 
 interface CardDetailProps {
   cardId: number;
   onClose: () => void;
   onSave: () => void;
   isEditMode?: boolean;
+  isInstanceOwner?: boolean;
+  onDelete?: (id: number) => void;
+  onMove?: (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => Promise<void>;
+  categories?: Array<{ id: number; name: string }>;
+  onEdit?: () => void;
 }
 
-export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave, isEditMode = false }) => {
+export const CardDetail: React.FC<CardDetailProps> = ({ 
+  cardId, 
+  onClose, 
+  onSave, 
+  isEditMode: initialEditMode = false,
+  isInstanceOwner = false,
+  onDelete,
+  onMove,
+  categories = [],
+  onEdit
+}) => {
   const [card, setCard] = useState<Card | null>(null);
   const [parentFolder, setParentFolder] = useState<Card | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,7 +39,19 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
   const [error, setError] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showSavedState, setShowSavedState] = useState(false);
+  const [showPracticeCard, setShowPracticeCard] = useState(false);
+  const [showUpdateAI, setShowUpdateAI] = useState(false);
+  const [showMoveToModal, setShowMoveToModal] = useState(false);
+  const [internalEditMode, setInternalEditMode] = useState(initialEditMode);
   const savedStateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use internal edit mode if set, otherwise use prop
+  const isEditMode = internalEditMode || initialEditMode;
+
+  // Reset internal edit mode when cardId changes
+  useEffect(() => {
+    setInternalEditMode(initialEditMode);
+  }, [cardId, initialEditMode]);
 
   // Form state
   const [name, setName] = useState('');
@@ -132,6 +165,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
     if (isEditMode && hasUnsavedChanges()) {
       setShowCloseConfirm(true);
     } else {
+      setInternalEditMode(false);
       onClose();
     }
   };
@@ -185,6 +219,8 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
         setShowSavedState(false);
       }, 3000);
 
+      // Switch back to read-only mode after saving
+      setInternalEditMode(false);
       onSave();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to save card');
@@ -198,6 +234,7 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
     await handleSave();
     // Small delay to show saved state before closing
     setTimeout(() => {
+      setInternalEditMode(false);
       onClose();
     }, 500);
   };
@@ -205,6 +242,93 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
   const handleDiscard = () => {
     setShowCloseConfirm(false);
     onClose();
+  };
+
+  const handleEdit = () => {
+    // Switch to edit mode
+    setInternalEditMode(true);
+    if (onEdit) {
+      onEdit();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!card || !onDelete) return;
+    
+    const cardAsTreeItem: TreeItem = {
+      id: card.id,
+      name: card.name,
+      type: 'card',
+      parent_id: card.parent_id,
+      is_folder: false,
+      children: [],
+      category_id: card.category_id ?? undefined,
+    };
+
+    await handleConditionalDelete(
+      cardAsTreeItem,
+      () => {
+        onDelete(card.id);
+        onClose();
+      },
+      (error) => {
+        console.error('Error deleting card:', error);
+        setError('Failed to delete card');
+      }
+    );
+  };
+
+  const handleMove = async (itemId: number, data: { parent_id?: number | null; category_id?: number | null }) => {
+    if (!onMove) return;
+    try {
+      await onMove(itemId, data);
+      setShowMoveToModal(false);
+      onClose();
+      onSave(); // Refresh the view
+    } catch (error) {
+      console.error('Error moving card:', error);
+      setError('Failed to move card');
+    }
+  };
+
+  // Get dropdown menu items for read-only view
+  const getReadOnlyMenuItems = (): DropdownMenuItem[] => {
+    const items: DropdownMenuItem[] = [];
+    
+    if (isInstanceOwner) {
+      // Owner: Edit, Update AI, Practice Card, Divider, Move, Delete
+      items.push(
+        createEditAction(handleEdit),
+        {
+          id: 'update-ai',
+          label: 'Update card using AI',
+          icon: <Sparkles className="h-4 w-4" />,
+          onClick: () => setShowUpdateAI(true),
+        },
+        createPracticeCardAction(() => setShowPracticeCard(true)),
+        {
+          id: 'divider',
+          label: '',
+          icon: <div />,
+          onClick: () => {},
+          disabled: true,
+        },
+        {
+          id: 'move',
+          label: 'Move To...',
+          icon: <Move className="h-4 w-4" />,
+          onClick: () => setShowMoveToModal(true),
+        },
+        createDeleteAction(handleDelete)
+      );
+    } else {
+      // Viewer: Practice Card only
+      items.push(
+        createPracticeCardAction(() => setShowPracticeCard(true))
+      );
+    }
+    
+    return items;
   };
 
   // Cleanup timeout on unmount
@@ -450,7 +574,25 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
                   </button>
                 </>
               )}
-              {!isEditMode && (
+              {!isEditMode && card && !card.is_folder && (
+                <>
+                  {/* Three-dot menu - always visible for cards */}
+                  <DropdownMenu
+                    items={getReadOnlyMenuItems()}
+                    className="opacity-100"
+                  />
+                  
+                  {/* Close button */}
+                  <button
+                    onClick={onClose}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-2"
+                    title="Close"
+                  >
+                    <X className="h-5 w-5 text-gray-600" />
+                  </button>
+                </>
+              )}
+              {!isEditMode && (!card || card.is_folder) && (
                 <button
                   onClick={onClose}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
@@ -743,6 +885,50 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave,
             </div>
           </div>
         </div>
+      )}
+
+      {/* Practice Card Modal */}
+      {showPracticeCard && card && (
+        <PracticeCard
+          cardId={card.id}
+          onClose={() => setShowPracticeCard(false)}
+        />
+      )}
+
+      {/* Update Card AI Modal */}
+      {showUpdateAI && card && (
+        <UpdateCardAI
+          card={card}
+          onClose={() => setShowUpdateAI(false)}
+          onSuccess={async (updatedCard) => {
+            setShowUpdateAI(false);
+            await loadCard(); // Reload to show updated data
+            onSave();
+          }}
+        />
+      )}
+
+      {/* Move To Modal */}
+      {showMoveToModal && card && categories.length > 0 && (
+        <MoveToModal
+          item={{
+            id: card.id,
+            name: card.name,
+            type: 'card',
+            parent_id: card.parent_id,
+            is_folder: false,
+            children: [],
+            category_id: card.category_id ?? undefined,
+          }}
+          categories={categories.map(cat => ({
+            id: cat.id,
+            name: cat.name,
+            isExpanded: false,
+            children: [],
+          }))}
+          onClose={() => setShowMoveToModal(false)}
+          onMove={handleMove}
+        />
       )}
     </>
   );
