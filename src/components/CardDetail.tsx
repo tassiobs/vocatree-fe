@@ -137,9 +137,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
           )}
 
           {/* Meanings - Primary Content */}
-          {meanings.length > 0 && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Meanings</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Meanings</h2>
+            {meanings.length > 0 ? (
               <div className="space-y-3">
                 {meanings.map((meaning, index) => (
                   <div
@@ -150,13 +150,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-gray-400 italic">No meanings added yet</p>
+            )}
+          </div>
 
           {/* Example Phrases - Primary Learning Section */}
-          {examplePhrases.length > 0 && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Example Phrases</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Example Phrases</h2>
+            {examplePhrases.length > 0 ? (
               <div className="space-y-2">
                 {examplePhrases.map((phrase, index) => (
                   <div
@@ -167,81 +169,89 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-gray-400 italic">No example phrases added yet</p>
+            )}
+          </div>
 
           {/* Secondary Reference Data - Visually Lighter */}
           <div className="space-y-6 pt-4 border-t border-gray-100">
             {/* Synonyms, Antonyms, Collocations, Related Words - Chips */}
-            {(synonyms.length > 0 || antonyms.length > 0 || collocations.length > 0 || relatedWords.length > 0) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {synonyms.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Synonyms</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {synonyms.map((synonym, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
-                        >
-                          {synonym}
-                        </span>
-                      ))}
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Synonyms</h3>
+                {synonyms.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {synonyms.map((synonym, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+                      >
+                        {synonym}
+                      </span>
+                    ))}
                   </div>
-                )}
-                {antonyms.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Antonyms</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {antonyms.map((antonym, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm"
-                        >
-                          {antonym}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {collocations.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Collocations</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {collocations.map((collocation, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
-                        >
-                          {collocation}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {relatedWords.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Related Words</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {relatedWords.map((word, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm"
-                        >
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">None</p>
                 )}
               </div>
-            )}
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Antonyms</h3>
+                {antonyms.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {antonyms.map((antonym, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm"
+                      >
+                        {antonym}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">None</p>
+                )}
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Collocations</h3>
+                {collocations.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {collocations.map((collocation, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
+                      >
+                        {collocation}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">None</p>
+                )}
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Related Words</h3>
+                {relatedWords.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {relatedWords.map((word, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm"
+                      >
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">None</p>
+                )}
+              </div>
+            </div>
 
             {/* Grammar Roles - Chips */}
-            {grammarRoles.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Grammar Roles</h3>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Grammar Roles</h3>
+              {grammarRoles.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {grammarRoles.map((role, index) => (
                     <span
@@ -252,13 +262,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-gray-400 italic">None</p>
+              )}
+            </div>
 
             {/* Word Forms - Chips */}
-            {wordForms.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Word Forms</h3>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Word Forms</h3>
+              {wordForms.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {wordForms.map((form, index) => (
                     <span
@@ -269,13 +281,15 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-gray-400 italic">None</p>
+              )}
+            </div>
 
             {/* Videos - Links */}
-            {videos.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Videos</h3>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Videos</h3>
+              {videos.length > 0 ? (
                 <div className="space-y-2">
                   {videos.map((video, index) => (
                     <a
@@ -289,8 +303,10 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
                     </a>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-gray-400 italic">None</p>
+              )}
+            </div>
 
             {/* Metadata - Compact Display */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
@@ -334,21 +350,25 @@ export const CardDetail: React.FC<CardDetailProps> = ({ cardId, onClose, onSave 
               )}
             </div>
 
-            {/* Etymology - If present */}
-            {etymology && (
-              <div className="pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Etymology</h3>
+            {/* Etymology */}
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Etymology</h3>
+              {etymology ? (
                 <p className="text-sm text-gray-700 leading-relaxed">{etymology}</p>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-gray-400 italic">None</p>
+              )}
+            </div>
 
-            {/* Notes - If present */}
-            {notes && (
-              <div className="pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
+            {/* Notes */}
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
+              {notes ? (
                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{notes}</p>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-gray-400 italic">None</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
