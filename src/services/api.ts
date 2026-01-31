@@ -21,6 +21,7 @@ import {
   CardReviewRequest,
   CardReviewResponse,
   InstanceListResponse,
+  InstanceWithRoleResponse,
   CardReviewsResponse,
   WorkplaceListResponse,
   Instance,
@@ -490,6 +491,11 @@ class ApiClient {
 
   async getInstances(): Promise<InstanceListResponse> {
     const response: AxiosResponse<InstanceListResponse> = await this.client.get('/instances/');
+    return response.data;
+  }
+
+  async getInstance(id: number): Promise<InstanceWithRoleResponse> {
+    const response: AxiosResponse<InstanceWithRoleResponse> = await this.client.get(`/instances/${id}`);
     return response.data;
   }
 

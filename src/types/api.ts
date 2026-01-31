@@ -251,6 +251,11 @@ export interface InstanceListResponse {
   items: InstanceWithRole[];
 }
 
+export interface InstanceWithRoleResponse {
+  instance: Instance;
+  user_role: string;
+}
+
 export interface CardReviewItem {
   id: number;
   card_id: number;

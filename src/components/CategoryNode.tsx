@@ -19,6 +19,8 @@ import {
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createAICardAction } from './DropdownMenu';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
+import { useInstance } from '../hooks/useInstance';
+import { useAuth } from '../hooks/useAuth';
 
 interface CategoryNodeProps {
   category: CategoryItem;
@@ -43,6 +45,8 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   onCategoryRefresh,
   categories = [],
 }) => {
+  const { selectedInstanceId } = useInstance();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(category.name);
   const [showAddInput, setShowAddInput] = useState(false);
@@ -53,6 +57,28 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [showCategoryView, setShowCategoryView] = useState(false);
   const [dragOverCategory, setDragOverCategory] = useState(false);
+  const [isInstanceOwner, setIsInstanceOwner] = useState(false);
+
+  // Check if user is instance owner
+  useEffect(() => {
+    const checkInstanceOwnership = async () => {
+      if (!selectedInstanceId || !user) {
+        setIsInstanceOwner(false);
+        return;
+      }
+
+      try {
+        const instanceData = await apiClient.getInstance(selectedInstanceId);
+        const isOwner = instanceData.user_role === 'owner' || instanceData.instance.created_by === user.id;
+        setIsInstanceOwner(isOwner);
+      } catch (error) {
+        console.error('Error checking instance ownership:', error);
+        setIsInstanceOwner(false);
+      }
+    };
+
+    checkInstanceOwnership();
+  }, [selectedInstanceId, user]);
 
   // Sync editName with category.name when category changes
   useEffect(() => {
@@ -241,11 +267,18 @@ export const CategoryNode: React.FC<CategoryNodeProps> = ({
 
   // Create dropdown menu items for category
   const getCategoryDropdownItems = (): DropdownMenuItem[] => {
-    return [
-      createAICardAction(() => setShowAICardForm(true)),
-      createEditAction(() => setIsEditing(true)),
-      createDeleteAction(handleDelete),
-    ];
+    const items: DropdownMenuItem[] = [];
+    
+    // Only show Add card using AI, Edit and Delete if user is instance owner
+    if (isInstanceOwner) {
+      items.push(
+        createAICardAction(() => setShowAICardForm(true)),
+        createEditAction(() => setIsEditing(true)),
+        createDeleteAction(handleDelete)
+      );
+    }
+    
+    return items;
   };
 
   // Calculate total items in category

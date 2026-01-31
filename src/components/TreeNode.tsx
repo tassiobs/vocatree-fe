@@ -12,6 +12,8 @@ import { FolderPracticeSession } from './FolderPracticeSession';
 import { handleConditionalDelete } from '../utils/deleteUtils';
 import { apiClient } from '../services/api';
 import { Card } from '../types/api';
+import { useInstance } from '../hooks/useInstance';
+import { useAuth } from '../hooks/useAuth';
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -35,6 +37,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   categoryId,
   categories = [],
 }) => {
+  const { selectedInstanceId } = useInstance();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item.name);
   const [showAddInput, setShowAddInput] = useState(false);
@@ -47,6 +51,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const [showFolderView, setShowFolderView] = useState(false);
   const [showMoveToModal, setShowMoveToModal] = useState(false);
   const [showPracticeSession, setShowPracticeSession] = useState(false);
+  const [isInstanceOwner, setIsInstanceOwner] = useState(false);
   
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
@@ -56,6 +61,28 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const draggedItemRef = useRef<TreeItem | null>(null);
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+  // Check if user is instance owner
+  useEffect(() => {
+    const checkInstanceOwnership = async () => {
+      if (!selectedInstanceId || !user) {
+        setIsInstanceOwner(false);
+        return;
+      }
+
+      try {
+        const instanceData = await apiClient.getInstance(selectedInstanceId);
+        // Check if user is owner via user_role or created_by
+        const isOwner = instanceData.user_role === 'owner' || instanceData.instance.created_by === user.id;
+        setIsInstanceOwner(isOwner);
+      } catch (error) {
+        console.error('Error checking instance ownership:', error);
+        setIsInstanceOwner(false);
+      }
+    };
+
+    checkInstanceOwnership();
+  }, [selectedInstanceId, user]);
 
   const handleRename = () => {
     if (editName.trim() && editName.trim() !== item.name) {
@@ -381,49 +408,61 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     // For cards (is_folder = false)
     if (!item.is_folder) {
       items.push(
-        createPracticeCardAction(() => setShowPracticeCard(true)),
-        {
-          id: 'update-ai',
-          label: 'Update Card using AI',
-          icon: <Sparkles className="h-4 w-4" />,
-          onClick: () => setShowUpdateAI(true),
-        },
-        {
-          id: 'move',
-          label: 'Move To...',
-          icon: <Move className="h-4 w-4" />,
-          onClick: () => {
-            console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
-            setShowMoveToModal(true);
-          },
-        },
-        createEditAction(() => setIsEditing(true)),
-        createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
+        createPracticeCardAction(() => setShowPracticeCard(true))
       );
+      
+      // Only show Update Card using AI and Move To if user is instance owner
+      if (isInstanceOwner) {
+        items.push(
+          {
+            id: 'update-ai',
+            label: 'Update Card using AI',
+            icon: <Sparkles className="h-4 w-4" />,
+            onClick: () => setShowUpdateAI(true),
+          },
+          {
+            id: 'move',
+            label: 'Move To...',
+            icon: <Move className="h-4 w-4" />,
+            onClick: () => {
+              console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
+              setShowMoveToModal(true);
+            },
+          },
+          createEditAction(() => setIsEditing(true)),
+          createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
+        );
+      }
     }
 
     // For folders (is_folder = true)
     if (item.is_folder) {
       items.push(
-        createPracticeFolderAction(() => setShowPracticeSession(true)),
-        {
-          id: 'update-ai',
-          label: 'Update Card using AI',
-          icon: <Sparkles className="h-4 w-4" />,
-          onClick: () => setShowUpdateAI(true),
-        },
-        {
-          id: 'move',
-          label: 'Move To...',
-          icon: <Move className="h-4 w-4" />,
-          onClick: () => {
-            console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
-            setShowMoveToModal(true);
-          },
-        },
-        createEditAction(() => setIsEditing(true)),
-        createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
+        createPracticeFolderAction(() => setShowPracticeSession(true))
       );
+      
+      // Only show Update Card using AI and Move To if user is instance owner
+      if (isInstanceOwner) {
+        items.push(
+          {
+            id: 'update-ai',
+            label: 'Update Card using AI',
+            icon: <Sparkles className="h-4 w-4" />,
+            onClick: () => setShowUpdateAI(true),
+          },
+          {
+            id: 'move',
+            label: 'Move To...',
+            icon: <Move className="h-4 w-4" />,
+            onClick: () => {
+              console.log('Move action clicked for item:', item.name, 'parent_id:', item.parent_id, 'categories:', categories.length);
+              setShowMoveToModal(true);
+            },
+          },
+          createEditAction(() => setIsEditing(true)),
+          createDeleteAction(() => handleConditionalDelete(item, () => onDelete(item.id)))
+        );
+      }
     }
 
     return items;

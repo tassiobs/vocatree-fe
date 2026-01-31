@@ -5,18 +5,42 @@ import { AddItemInput } from './AddItemInput';
 import { AITreeGenerator } from './AITreeGenerator';
 import { apiClient } from '../services/api';
 import { useInstance } from '../hooks/useInstance';
+import { useAuth } from '../hooks/useAuth';
 import { buildTree, updateTreeItem, removeTreeItem, moveTreeItem, findTreeItem, getExpandedIds, moveItemAcrossCategories } from '../utils/treeUtils';
 import { Loader2, Sparkles, Tag, Check } from 'lucide-react';
 
 export const VocabTree: React.FC = () => {
   const { selectedInstanceId } = useInstance();
+  const { user } = useAuth();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isInstanceOwner, setIsInstanceOwner] = useState(false);
   const categoriesRef = useRef<CategoryItem[]>([]);
+
+  // Check if user is instance owner
+  useEffect(() => {
+    const checkInstanceOwnership = async () => {
+      if (!selectedInstanceId || !user) {
+        setIsInstanceOwner(false);
+        return;
+      }
+
+      try {
+        const instanceData = await apiClient.getInstance(selectedInstanceId);
+        const isOwner = instanceData.user_role === 'owner' || instanceData.instance.created_by === user.id;
+        setIsInstanceOwner(isOwner);
+      } catch (error) {
+        console.error('Error checking instance ownership:', error);
+        setIsInstanceOwner(false);
+      }
+    };
+
+    checkInstanceOwnership();
+  }, [selectedInstanceId, user]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -302,22 +326,24 @@ export const VocabTree: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Vocabulary Tree</h1>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setShowAIGenerator(true)}
-            className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>Generate with AI</span>
-          </button>
-          <button
-            onClick={() => setShowAddCategory(true)}
-            className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
-          >
-            <Tag className="h-4 w-4" />
-            <span>Add Category</span>
-          </button>
-        </div>
+        {isInstanceOwner && (
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowAIGenerator(true)}
+              className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Generate with AI</span>
+            </button>
+            <button
+              onClick={() => setShowAddCategory(true)}
+              className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+            >
+              <Tag className="h-4 w-4" />
+              <span>Add Category</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add category input */}
@@ -340,12 +366,14 @@ export const VocabTree: React.FC = () => {
             <Tag className="h-12 w-12 mb-4 opacity-50" />
             <p className="text-lg font-medium mb-2">No categories yet</p>
             <p className="text-sm mb-4">Start by adding your first category</p>
-            <button
-              onClick={() => setShowAddCategory(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md"
-            >
-              Add Category
-            </button>
+            {isInstanceOwner && (
+              <button
+                onClick={() => setShowAddCategory(true)}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md"
+              >
+                Add Category
+              </button>
+            )}
           </div>
         ) : (
           categories.map((category) => (

@@ -8,6 +8,7 @@ import { handleConditionalDelete } from '../utils/deleteUtils';
 import { X, Tag, Loader2, Folder, Plus, Check } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { useInstance } from '../hooks/useInstance';
+import { useAuth } from '../hooks/useAuth';
 import { buildTree } from '../utils/treeUtils';
 
 interface CategoryViewProps {
@@ -30,6 +31,7 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   categories = [],
 }) => {
   const { selectedInstanceId } = useInstance();
+  const { user } = useAuth();
   const [categoryData, setCategoryData] = useState<CategoryItem>(category);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -41,6 +43,28 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showAICardForm, setShowAICardForm] = useState(false);
+  const [isInstanceOwner, setIsInstanceOwner] = useState(false);
+
+  // Check if user is instance owner
+  useEffect(() => {
+    const checkInstanceOwnership = async () => {
+      if (!selectedInstanceId || !user) {
+        setIsInstanceOwner(false);
+        return;
+      }
+
+      try {
+        const instanceData = await apiClient.getInstance(selectedInstanceId);
+        const isOwner = instanceData.user_role === 'owner' || instanceData.instance.created_by === user.id;
+        setIsInstanceOwner(isOwner);
+      } catch (error) {
+        console.error('Error checking instance ownership:', error);
+        setIsInstanceOwner(false);
+      }
+    };
+
+    checkInstanceOwnership();
+  }, [selectedInstanceId, user]);
 
   useEffect(() => {
     if (selectedInstanceId !== null) {
@@ -256,11 +280,18 @@ export const CategoryView: React.FC<CategoryViewProps> = ({
 
   // Create dropdown menu items for category
   const getCategoryDropdownItems = (): DropdownMenuItem[] => {
-    return [
-      createAICardAction(() => setShowAICardForm(true)),
-      createEditAction(() => setIsEditing(true)),
-      createDeleteAction(handleDelete),
-    ];
+    const items: DropdownMenuItem[] = [];
+    
+    // Only show Add card using AI, Edit and Delete if user is instance owner
+    if (isInstanceOwner) {
+      items.push(
+        createAICardAction(() => setShowAICardForm(true)),
+        createEditAction(() => setIsEditing(true)),
+        createDeleteAction(handleDelete)
+      );
+    }
+    
+    return items;
   };
 
   return (

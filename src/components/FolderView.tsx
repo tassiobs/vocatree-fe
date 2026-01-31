@@ -11,6 +11,7 @@ import { MoveToModal } from './MoveToModal';
 import { X, Folder, Loader2, FileText, Plus, Check, Move, Sparkles } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { useInstance } from '../hooks/useInstance';
+import { useAuth } from '../hooks/useAuth';
 import { Card } from '../types/api';
 import { cardToTreeItem } from '../utils/treeUtils';
 
@@ -34,6 +35,7 @@ export const FolderView: React.FC<FolderViewProps> = ({
   categories = [],
 }) => {
   const { selectedInstanceId } = useInstance();
+  const { user } = useAuth();
   const [folderData, setFolderData] = useState<TreeItem>(folder);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -48,7 +50,29 @@ export const FolderView: React.FC<FolderViewProps> = ({
   const [showPracticeSession, setShowPracticeSession] = useState(false);
   const [showUpdateAI, setShowUpdateAI] = useState(false);
   const [folderCard, setFolderCard] = useState<Card | null>(null);
+  const [isInstanceOwner, setIsInstanceOwner] = useState(false);
   const isRootFolder = folder.parent_id === null;
+
+  // Check if user is instance owner
+  useEffect(() => {
+    const checkInstanceOwnership = async () => {
+      if (!selectedInstanceId || !user) {
+        setIsInstanceOwner(false);
+        return;
+      }
+
+      try {
+        const instanceData = await apiClient.getInstance(selectedInstanceId);
+        const isOwner = instanceData.user_role === 'owner' || instanceData.instance.created_by === user.id;
+        setIsInstanceOwner(isOwner);
+      } catch (error) {
+        console.error('Error checking instance ownership:', error);
+        setIsInstanceOwner(false);
+      }
+    };
+
+    checkInstanceOwnership();
+  }, [selectedInstanceId, user]);
 
   useEffect(() => {
     if (selectedInstanceId !== null) {
@@ -246,32 +270,39 @@ export const FolderView: React.FC<FolderViewProps> = ({
   // Create dropdown menu items for folder
   const getFolderDropdownItems = (): DropdownMenuItem[] => {
     const items: DropdownMenuItem[] = [
-      createPracticeFolderAction(() => setShowPracticeSession(true)),
-      {
-        id: 'update-ai',
-        label: 'Update Card using AI',
-        icon: <Sparkles className="h-4 w-4" />,
-        onClick: async () => {
-          try {
-            // Load folder as card for AI update
-            const cardData = await apiClient.getCard(folderData.id);
-            setFolderCard(cardData);
-            setShowUpdateAI(true);
-          } catch (err: any) {
-            console.error('Error loading folder for AI update:', err);
-            alert('Failed to load folder data for AI update');
-          }
-        },
-      },
-      {
-        id: 'move',
-        label: 'Move To...',
-        icon: <Move className="h-4 w-4" />,
-        onClick: () => setShowMoveToModal(true),
-      },
-      createEditAction(() => setIsEditing(true)),
-      createDeleteAction(handleDelete),
+      createPracticeFolderAction(() => setShowPracticeSession(true))
     ];
+    
+    // Only show Update Card using AI and Move To if user is instance owner
+    if (isInstanceOwner) {
+      items.push(
+        {
+          id: 'update-ai',
+          label: 'Update Card using AI',
+          icon: <Sparkles className="h-4 w-4" />,
+          onClick: async () => {
+            try {
+              // Load folder as card for AI update
+              const cardData = await apiClient.getCard(folderData.id);
+              setFolderCard(cardData);
+              setShowUpdateAI(true);
+            } catch (err: any) {
+              console.error('Error loading folder for AI update:', err);
+              alert('Failed to load folder data for AI update');
+            }
+          },
+        },
+        {
+          id: 'move',
+          label: 'Move To...',
+          icon: <Move className="h-4 w-4" />,
+          onClick: () => setShowMoveToModal(true),
+        },
+        createEditAction(() => setIsEditing(true)),
+        createDeleteAction(handleDelete)
+      );
+    }
+    
     return items;
   };
 
