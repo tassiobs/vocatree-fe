@@ -5,9 +5,10 @@ import { apiClient } from '../services/api';
 interface AITreeGeneratorProps {
   onClose: () => void;
   onSuccess: () => void;
+  instanceId: number | null;
 }
 
-export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuccess }) => {
+export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuccess, instanceId }) => {
   const [categoryName, setCategoryName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -22,6 +23,11 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
       return;
     }
 
+    if (!instanceId) {
+      setError('Instance ID is required');
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
 
@@ -30,6 +36,7 @@ export const AITreeGenerator: React.FC<AITreeGeneratorProps> = ({ onClose, onSuc
         language: 'English',
         category_name: categoryName.trim(),
         prompt: prompt.trim() || undefined,
+        instance_id: instanceId,
       };
       
       const response = await apiClient.generateAITree(requestBody);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, Plus, Loader2, Sparkles } from 'lucide-react';
 import { apiClient } from '../services/api';
-import { Card, EvaluateMeaningResponse, EvaluateExamplePhraseResponse } from '../types/api';
+import { Card, EvaluateMeaningResponse, EvaluateExamplePhraseResponse, MeaningWithGrammarRole } from '../types/api';
 
 interface PracticeCardProps {
   cardId: number;
@@ -114,9 +114,13 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({ cardId, onClose }) =
       setCard(cardData);
 
       // Initialize field states with existing values
+      // Convert meanings to string array (handle both old and new formats)
+      const meaningsArray = (cardData.meanings || []).map(m => 
+        typeof m === 'string' ? m : m.meaning
+      );
       setMeanings({
         isRevealed: false,
-        existingValues: cardData.meanings || [],
+        existingValues: meaningsArray,
         newValues: [],
       });
       setExamplePhrases({

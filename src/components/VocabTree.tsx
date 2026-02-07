@@ -398,6 +398,7 @@ export const VocabTree: React.FC = () => {
         <AITreeGenerator
           onClose={() => setShowAIGenerator(false)}
           onSuccess={handleAIGeneratorSuccess}
+          instanceId={selectedInstanceId}
         />
       )}
     </div>

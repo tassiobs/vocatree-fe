@@ -26,7 +26,7 @@ export interface TreeItem {
   isCategory?: boolean; // Flag to identify if this is a category (not a regular folder)
   // Card-specific properties
   example_phrases?: string[] | null;
-  meanings?: string[] | null;
+  meanings?: (string | import('./api').MeaningWithGrammarRole)[] | null;
   grammar_roles?: string[] | null;
   collocations?: string[] | null;
   synonyms?: string[] | null;

@@ -586,7 +586,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
           {/* Icon with different styling based on type and level */}
           <div className="mr-3 flex-shrink-0">
-            {item.is_folder ? (
+            {(item.is_folder === true || item.type === 'folder') ? (
               <Folder className={`${isTopLevelFolder ? 'h-5 w-5 text-blue-600' : 'h-4 w-4 text-blue-500'}`} />
             ) : (
               <FileText className="h-3.5 w-3.5 text-gray-500" />
@@ -741,7 +741,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
               {/* Icon with different styling based on type and level */}
               <div className="mr-3 flex-shrink-0">
-                {item.is_folder ? (
+                {(item.is_folder === true || item.type === 'folder') ? (
                   <Folder className={`${isTopLevelFolder ? 'h-5 w-5 text-blue-600' : 'h-4 w-4 text-blue-500'}`} />
                 ) : (
                   <FileText className="h-3.5 w-3.5 text-gray-500" />

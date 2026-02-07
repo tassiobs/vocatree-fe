@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Save, AlertTriangle, Edit2, Sparkles, BookOpen, Move, MoreVertical } from 'lucide-react';
 import { apiClient } from '../services/api';
-import { Card, CardUpdate } from '../types/api';
+import { Card, CardUpdate, MeaningWithGrammarRole } from '../types/api';
 import { DropdownMenu, DropdownMenuItem, createEditAction, createDeleteAction, createPracticeCardAction } from './DropdownMenu';
 import { PracticeCard } from './PracticeCard';
 import { UpdateCardAI } from './UpdateCardAI';
@@ -55,9 +55,9 @@ export const CardDetail: React.FC<CardDetailProps> = ({
 
   // Form state
   const [name, setName] = useState('');
-  const [examplePhrases, setExamplePhrases] = useState<string[]>([]);
-  const [meanings, setMeanings] = useState<string[]>([]);
-  const [grammarRoles, setGrammarRoles] = useState<string[]>([]);
+  const [examplePhrases, setExamplePhrases] = useState<string[]>([]); // DEPRECATED - kept for backward compatibility
+  const [meanings, setMeanings] = useState<MeaningWithGrammarRole[]>([]);
+  const [grammarRoles, setGrammarRoles] = useState<string[]>([]); // DEPRECATED - kept for backward compatibility
   const [collocations, setCollocations] = useState<string[]>([]);
   const [synonyms, setSynonyms] = useState<string[]>([]);
   const [antonyms, setAntonyms] = useState<string[]>([]);
@@ -88,6 +88,36 @@ export const CardDetail: React.FC<CardDetailProps> = ({
     loadCard();
   }, [cardId]);
 
+  // Parse meanings from API response - handles both old and new formats
+  const parseMeanings = (cardData: Card): MeaningWithGrammarRole[] => {
+    if (!cardData.meanings || cardData.meanings.length === 0) {
+      return [];
+    }
+
+    return cardData.meanings.map((meaning, index) => {
+      // Handle old format (string)
+      if (typeof meaning === 'string') {
+        // Try to get grammar role from grammar_roles array if available
+        const grammarRole = cardData.grammar_roles && cardData.grammar_roles[index] 
+          ? cardData.grammar_roles[index] 
+          : 'noun'; // Default fallback
+        
+        return {
+          grammar_role: grammarRole,
+          meaning: meaning,
+          example_phrases: [] // Old format didn't have per-meaning examples
+        };
+      }
+      
+      // Handle new format (object)
+      return {
+        grammar_role: meaning.grammar_role || 'noun',
+        meaning: meaning.meaning || '',
+        example_phrases: meaning.example_phrases || []
+      };
+    });
+  };
+
   const loadCard = async () => {
     try {
       setIsLoading(true);
@@ -97,9 +127,12 @@ export const CardDetail: React.FC<CardDetailProps> = ({
       
       // Set form values
       setName(cardData.name);
-      setExamplePhrases(cardData.example_phrases || []);
-      setMeanings(cardData.meanings || []);
-      setGrammarRoles(cardData.grammar_roles || []);
+      setExamplePhrases(cardData.example_phrases || []); // DEPRECATED
+      setGrammarRoles(cardData.grammar_roles || []); // DEPRECATED
+      
+      // Parse meanings - handle both old (string[]) and new (MeaningWithGrammarRole[]) formats
+      const parsedMeanings = parseMeanings(cardData);
+      setMeanings(parsedMeanings);
       setCollocations(cardData.collocations || []);
       setSynonyms(cardData.synonyms || []);
       setAntonyms(cardData.antonyms || []);
@@ -140,11 +173,27 @@ export const CardDetail: React.FC<CardDetailProps> = ({
       return arrA.every((val, idx) => val === arrB[idx]);
     };
 
+    // Compare meanings arrays (handle both old and new formats)
+    const meaningsEqual = (a: MeaningWithGrammarRole[], b: (string | MeaningWithGrammarRole)[] | null): boolean => {
+      const arrB = b || [];
+      if (a.length !== arrB.length) return false;
+      
+      return a.every((meaningA, idx) => {
+        const meaningB = arrB[idx];
+        if (typeof meaningB === 'string') {
+          // Old format - compare meaning text only
+          return meaningA.meaning === meaningB;
+        }
+        // New format - compare all fields
+        return meaningA.grammar_role === meaningB.grammar_role &&
+               meaningA.meaning === meaningB.meaning &&
+               arraysEqual(meaningA.example_phrases, meaningB.example_phrases);
+      });
+    };
+
     return (
       name !== card.name ||
-      !arraysEqual(examplePhrases, card.example_phrases) ||
-      !arraysEqual(meanings, card.meanings) ||
-      !arraysEqual(grammarRoles, card.grammar_roles) ||
+      !meaningsEqual(meanings, card.meanings) ||
       !arraysEqual(collocations, card.collocations) ||
       !arraysEqual(synonyms, card.synonyms) ||
       !arraysEqual(antonyms, card.antonyms) ||
@@ -179,9 +228,16 @@ export const CardDetail: React.FC<CardDetailProps> = ({
 
       const updateData: CardUpdate = {
         name: name !== card.name ? name : undefined,
-        example_phrases: examplePhrases.length > 0 ? examplePhrases : null,
-        meanings: meanings.length > 0 ? meanings : null,
-        grammar_roles: grammarRoles.length > 0 ? grammarRoles : null,
+        // Convert meanings to new format for API
+        meanings: meanings.length > 0 ? meanings.map(m => ({
+          grammar_role: m.grammar_role,
+          meaning: m.meaning,
+          example_phrases: m.example_phrases
+        })) : null,
+        // Derive grammar_roles from meanings for backward compatibility
+        grammar_roles: meanings.length > 0 ? Array.from(new Set(meanings.map(m => m.grammar_role))) : null,
+        // DEPRECATED - set to empty array to indicate we're using new format
+        example_phrases: [],
         collocations: collocations.length > 0 ? collocations : null,
         synonyms: synonyms.length > 0 ? synonyms : null,
         antonyms: antonyms.length > 0 ? antonyms : null,
@@ -352,7 +408,172 @@ export const CardDetail: React.FC<CardDetailProps> = ({
     setList(list.filter((_, i) => i !== index));
   };
 
-  // Render editable list field
+  // State for adding example phrases to meanings (index -> input value)
+  const [meaningExampleInputs, setMeaningExampleInputs] = useState<Record<number, string>>({});
+
+  // Render editable meaning with grammar role and example phrases
+  const renderEditableMeaning = (meaning: MeaningWithGrammarRole, index: number) => {
+    const exampleInputValue = meaningExampleInputs[index] || '';
+    
+    return (
+      <div key={index} className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md mb-3">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1">
+            {/* Grammar Role Badge */}
+            <div className="mb-2">
+              <input
+                type="text"
+                value={meaning.grammar_role}
+                onChange={(e) => {
+                  const updated = [...meanings];
+                  updated[index] = { ...meaning, grammar_role: e.target.value };
+                  setMeanings(updated);
+                }}
+                placeholder="Grammar role (e.g., noun, verb)"
+                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-md border-0 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            
+            {/* Meaning Text */}
+            <textarea
+              value={meaning.meaning}
+              onChange={(e) => {
+                const updated = [...meanings];
+                updated[index] = { ...meaning, meaning: e.target.value };
+                setMeanings(updated);
+              }}
+              placeholder="Meaning/definition"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none mb-2"
+              rows={2}
+            />
+            
+            {/* Example Phrases */}
+            <div className="mt-2">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Example Phrases:</label>
+              <div className="space-y-1">
+                {meaning.example_phrases.map((phrase, phraseIndex) => (
+                  <div key={phraseIndex} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={phrase}
+                      onChange={(e) => {
+                        const updated = [...meanings];
+                        const updatedPhrases = [...meaning.example_phrases];
+                        updatedPhrases[phraseIndex] = e.target.value;
+                        updated[index] = { ...meaning, example_phrases: updatedPhrases };
+                        setMeanings(updated);
+                      }}
+                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 italic"
+                      placeholder="Example phrase"
+                    />
+                    <button
+                      onClick={() => {
+                        const updated = [...meanings];
+                        updated[index] = {
+                          ...meaning,
+                          example_phrases: meaning.example_phrases.filter((_, i) => i !== phraseIndex)
+                        };
+                        setMeanings(updated);
+                      }}
+                      className="p-1 hover:bg-red-200 rounded transition-colors"
+                      title="Remove phrase"
+                    >
+                      <Trash2 className="h-3 w-3 text-red-600" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={exampleInputValue}
+                    onChange={(e) => {
+                      setMeaningExampleInputs({ ...meaningExampleInputs, [index]: e.target.value });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (exampleInputValue.trim()) {
+                          const updated = [...meanings];
+                          updated[index] = {
+                            ...meaning,
+                            example_phrases: [...meaning.example_phrases, exampleInputValue.trim()]
+                          };
+                          setMeanings(updated);
+                          setMeaningExampleInputs({ ...meaningExampleInputs, [index]: '' });
+                        }
+                      }
+                    }}
+                    placeholder="Add example phrase..."
+                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      if (exampleInputValue.trim()) {
+                        const updated = [...meanings];
+                        updated[index] = {
+                          ...meaning,
+                          example_phrases: [...meaning.example_phrases, exampleInputValue.trim()]
+                        };
+                        setMeanings(updated);
+                        setMeaningExampleInputs({ ...meaningExampleInputs, [index]: '' });
+                      }
+                    }}
+                    className="px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setMeanings(meanings.filter((_, i) => i !== index));
+              // Clean up input state
+              const newInputs = { ...meaningExampleInputs };
+              delete newInputs[index];
+              setMeaningExampleInputs(newInputs);
+            }}
+            className="ml-2 p-1 hover:bg-red-200 rounded transition-colors flex-shrink-0"
+            title="Remove meaning"
+          >
+            <Trash2 className="h-4 w-4 text-red-600" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Render view-only meaning with grammar role and example phrases
+  const renderViewMeaning = (meaning: MeaningWithGrammarRole, index: number) => (
+    <div key={index} className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md mb-3">
+      {/* Grammar Role Badge */}
+      <div className="mb-2">
+        <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-md">
+          {meaning.grammar_role}
+        </span>
+      </div>
+      
+      {/* Meaning Text */}
+      <p className="text-gray-900 leading-relaxed mb-2">{meaning.meaning}</p>
+      
+      {/* Example Phrases */}
+      {meaning.example_phrases && meaning.example_phrases.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-gray-600 mb-1">Examples:</p>
+          <ul className="list-disc list-inside space-y-1">
+            {meaning.example_phrases.map((phrase, phraseIndex) => (
+              <li key={phraseIndex} className="text-sm text-gray-700 italic">
+                "{phrase}"
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render editable list field (for other fields like collocations, synonyms, etc.)
   const renderEditableList = (
     label: string,
     items: string[],
@@ -612,32 +833,64 @@ export const CardDetail: React.FC<CardDetailProps> = ({
             </div>
           )}
 
-          {/* Meanings */}
-          {isEditMode ? (
-            renderEditableList('Meanings', meanings, setMeanings, newMeaning, setNewMeaning, 'bg-blue-50', 'border-blue-500')
-          ) : (
-            renderViewList('Meanings', meanings, 'bg-blue-50', 'border-blue-500')
-          )}
-
-          {/* Example Phrases */}
-          {isEditMode ? (
-            renderEditableList('Example Phrases', examplePhrases, setExamplePhrases, newExamplePhrase, setNewExamplePhrase, 'bg-purple-50', 'border-purple-200')
-          ) : (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Example Phrases</h2>
-              {examplePhrases.length > 0 ? (
-                <div className="space-y-2">
-                  {examplePhrases.map((phrase, index) => (
-                    <div key={index} className="bg-purple-50 border border-purple-200 p-3 rounded-md">
-                      <p className="text-gray-800 italic leading-relaxed">"{phrase}"</p>
-                    </div>
-                  ))}
+          {/* Definitions & Examples */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Definitions & Examples</h2>
+            {meanings.length > 0 ? (
+              <div className="space-y-3">
+                {meanings.map((meaning, index) => 
+                  isEditMode 
+                    ? renderEditableMeaning(meaning, index)
+                    : renderViewMeaning(meaning, index)
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No definitions added yet</p>
+            )}
+            
+            {/* Add new meaning button (edit mode only) */}
+            {isEditMode && (
+              <div className="mt-4 p-4 border-2 border-dashed border-gray-300 rounded-md">
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newGrammarRole}
+                      onChange={(e) => setNewGrammarRole(e.target.value)}
+                      placeholder="Grammar role (e.g., noun, verb)"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <textarea
+                    value={newMeaning}
+                    onChange={(e) => setNewMeaning(e.target.value)}
+                    placeholder="Meaning/definition"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    rows={2}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (newMeaning.trim()) {
+                          setMeanings([...meanings, {
+                            grammar_role: newGrammarRole.trim() || 'noun',
+                            meaning: newMeaning.trim(),
+                            example_phrases: []
+                          }]);
+                          setNewMeaning('');
+                          setNewGrammarRole('');
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Meaning
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-400 italic">No example phrases added yet</p>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {/* Secondary Reference Data */}
           <div className="space-y-6 pt-4 border-t border-gray-100">

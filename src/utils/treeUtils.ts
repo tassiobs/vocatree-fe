@@ -12,7 +12,7 @@ export const cardToTreeItem = (card: Card): TreeItem => {
     name: card.name,
     type: card.is_folder ? 'folder' : 'card',
     parent_id: card.parent_id,
-    is_folder: card.is_folder,
+    is_folder: Boolean(card.is_folder), // Ensure boolean type
     children: children,
     isExpanded: false, // Start collapsed
     example_phrases: card.example_phrases,
@@ -42,7 +42,7 @@ export const buildTree = (cards: Card[], expandedIds?: Set<number>): TreeItem[] 
       name: card.name,
       type: card.is_folder ? 'folder' : 'card',
       parent_id: card.parent_id,
-      is_folder: card.is_folder,
+      is_folder: Boolean(card.is_folder), // Ensure boolean type
       children: children,
       isExpanded: expandedIds ? expandedIds.has(card.id) : false, // Preserve expanded state
       example_phrases: card.example_phrases,

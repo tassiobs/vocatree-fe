@@ -32,15 +32,21 @@ export interface AuthMeResponse {
   email: string;
 }
 
+export interface MeaningWithGrammarRole {
+  grammar_role: string;
+  meaning: string;
+  example_phrases: string[];
+}
+
 export interface Card {
   id: number;
   name: string;
   parent_id: number | null;
   is_folder: boolean;
   category_id?: number | null;
-  example_phrases: string[] | null;
-  meanings: string[] | null;
-  grammar_roles: string[] | null;
+  example_phrases: string[] | null; // DEPRECATED - use meanings[].example_phrases instead
+  meanings: (string | MeaningWithGrammarRole)[] | null; // Supports both old (string) and new (object) formats
+  grammar_roles: string[] | null; // Still available but can be derived from meanings
   collocations: string[] | null;
   synonyms: string[] | null;
   antonyms: string[] | null;
@@ -79,9 +85,9 @@ export interface CardCreate {
 export interface CardUpdate {
   name?: string | null;
   parent_id?: number | null;
-  example_phrases?: string[] | null;
-  meanings?: string[] | null;
-  grammar_roles?: string[] | null;
+  example_phrases?: string[] | null; // DEPRECATED - use meanings[].example_phrases instead
+  meanings?: MeaningWithGrammarRole[] | null;
+  grammar_roles?: string[] | null; // Can be derived from meanings
   collocations?: string[] | null;
   synonyms?: string[] | null;
   antonyms?: string[] | null;

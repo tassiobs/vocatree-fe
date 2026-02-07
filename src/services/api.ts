@@ -561,6 +561,7 @@ class ApiClient {
     language: string;
     category_name: string;
     prompt?: string;
+    instance_id: number;
   }): Promise<any> {
     const response: AxiosResponse<any> = await this.client.post('/categories/ai-generate-tree', data);
     return response.data;
